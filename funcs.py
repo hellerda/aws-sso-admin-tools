@@ -160,9 +160,15 @@ class AWSContextManager:
 def main():
     cmds_usage = '''\nAvailable commands:
     test-funcs
+    lookup-user-name
+    lookup-group-name
+    lookup-ps-name
+    lookup-user-id
+    lookup-group-id
+    lookup-ps-arn
     '''.rstrip()
 
-    usage = 'usage: %prog command [options]\n   ex: %prog test-funcs --ps_name MyPermissionSet\n'
+    usage = 'usage: %prog command [options]\n   ex: %prog lookup-ps-arn --ps_name MyPermissionSet\n'
     parser = OptionParser(usage + cmds_usage)
     global options
 
@@ -170,25 +176,34 @@ def main():
                       help='AWS profile to use')
     parser.add_option('--acct-id', dest='acct_id', default=None,
                       help='Account ID')
-    parser.add_option('--ps-name', dest='ps_name', default=None,
-                      help='Permission Set name')
+    parser.add_option('--user-id', dest='user_id', default=None,
+                      help='User ID')
+    parser.add_option('--group-id', dest='group_id', default=None,
+                      help='Group ID')
+    parser.add_option('--ps-arn', dest='ps_arn', default=None,
+                      help='Permission Set Arn')
     parser.add_option('--user-name', dest='user_name', default=None,
                       help='User name')
     parser.add_option('--group-name', dest='group_name', default=None,
                       help='Group name')
-    parser.add_option('--ou-name', dest='ou_name', default=None,
-                      help='OU name')
+    parser.add_option('--ps-name', dest='ps_name', default=None,
+                      help='Permission Set name')
 
     (options, args) = parser.parse_args()
 
-    def need_acct_id():
-        if options.acct_id == None:
-            print('No account specified; use --acct-id.')
+    def need_user_id():
+        if options.user_id == None:
+            print('No id specified; use --user-id.')
             exit(1)
 
-    def need_ps_name():
-        if options.ps_name == None:
-            print('No permission set specified; use --ps-name.')
+    def need_group_id():
+        if options.group_id == None:
+            print('No group specified; use --group-id.')
+            exit(1)
+
+    def need_ps_arn():
+        if options.ps_arn == None:
+            print('No permission set Arn specified; use --ps-arn.')
             exit(1)
 
     def need_user_name():
@@ -201,9 +216,9 @@ def main():
             print('No group specified; use --group-name.')
             exit(1)
 
-    def need_ou_name():
-        if options.ou_name == None:
-            print('No organizational unit specified; use --ou-name.')
+    def need_ps_name():
+        if options.ps_name == None:
+            print('No permission set specified; use --ps-name.')
             exit(1)
 
     operation = None
@@ -215,6 +230,26 @@ def main():
             need_user_name()
             need_group_name()
             operation = op
+
+        elif op == 'lookup-user-name':
+            need_user_id()
+            operation = op
+        elif op == 'lookup-group-name':
+            need_group_id()
+            operation = op
+        elif op == 'lookup-ps-name':
+            need_ps_arn()
+            operation = op
+        elif op == 'lookup-user-id':
+            need_user_name()
+            operation = op
+        elif op == 'lookup-group-id':
+            need_group_name()
+            operation = op
+        elif op == 'lookup-ps-arn':
+            need_ps_name()
+            operation = op
+
         else:
             print('Unknown command: %s\n' % op)
 
@@ -228,7 +263,7 @@ def main():
     # ----------------------------------------------------------------------------------------------
     with AWSContextManager(options.aws_profile) as ctx:
 
-       if operation == 'test-funcs':
+        if operation == 'test-funcs':
 
             # Simple test-assertions
             print('\nLooking up Permission Set \"%s\": %s' % (options.ps_name, "Success." if (options.ps_name ==
@@ -239,6 +274,61 @@ def main():
                   get_user_name_by_id(ctx, get_user_id_by_name(ctx, options.user_name))) else "Failed."))
 
             print("DONE.\n")
+
+
+        # Utility operations using the funcs...
+        elif operation == 'lookup-user-name':
+
+            user_name = get_user_name_by_id(ctx, options.user_id)
+            if user_name == None:
+                print('User id \"%s\" not found.' % options.user_id)
+            else:
+                print(user_name)
+
+
+        elif operation == 'lookup-group-name':
+
+            group_name = get_group_name_by_id(ctx, options.group_id)
+            if group_name == None:
+                print('Group id \"%s\" not found.' % options.group_id)
+            else:
+                print(group_name)
+
+
+        elif operation == 'lookup-ps-name':
+
+            ps_name = get_permission_set_name_by_arn(ctx, options.ps_arn)
+            if ps_name == None:
+                print('Permission set Arn \"%s\" not found.' % options.ps_arn)
+            else:
+                print(ps_name)
+
+
+        elif operation == 'lookup-user-id':
+
+            user_id = get_user_id_by_name(ctx, options.user_name)
+            if user_id == None:
+                print('User name \"%s\" not found.' % options.user_name)
+            else:
+                print(user_id)
+
+
+        elif operation == 'lookup-group-id':
+
+            group_id = get_group_id_by_name(ctx, options.group_name)
+            if group_id == None:
+                print('Group name \"%s\" not found.' % options.group_name)
+            else:
+                print(group_id)
+
+
+        elif operation == 'lookup-ps-arn':
+
+            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+            if ps_arn == None:
+                print('Permission set name \"%s\" not found.' % options.ps_name)
+            else:
+                print(ps_arn)
 
 
 if __name__ == '__main__':
