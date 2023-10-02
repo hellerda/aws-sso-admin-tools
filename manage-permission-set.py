@@ -174,8 +174,8 @@ def main():
     describe
     tag
     untag
-    attach-managed-policy
-    detach-managed-policy
+    attach-managed-policies
+    detach-managed-policies
     list-managed-policies
     put-inline-policy
     delete-inline-policy
@@ -244,10 +244,10 @@ def main():
             need_ps_name()
             need_tag_keys()
             operation = op
-        elif op == 'attach-managed-policy':
+        elif op == 'attach-managed-policies':
             need_ps_name()
             operation = op
-        elif op == 'detach-managed-policy':
+        elif op == 'detach-managed-policies':
             need_ps_name()
             operation = op
         elif op == 'list-managed-policies':
@@ -534,7 +534,7 @@ def main():
                 exit(1)
 
 
-        elif operation == 'attach-managed-policy':
+        elif operation == 'attach-managed-policies':
 
             if options.policy_arns != None:
                 policy_arns = read_policy_arns_from_cmdline()
@@ -565,7 +565,7 @@ def main():
                     print("Policy arn \"%s\" cannot be attached: %s" % (policy_arn, str(e)))
 
 
-        elif operation == 'detach-managed-policy':
+        elif operation == 'detach-managed-policies':
 
             if options.policy_arns != None:
                 policy_arns = read_policy_arns_from_cmdline()
