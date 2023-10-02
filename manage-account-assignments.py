@@ -48,8 +48,7 @@ def get_ps_provisioned_to_account(ctx, acct_id):
                 'list_permission_sets_provisioned_to_account')
             .paginate(
                 InstanceArn = ctx.instance_arn,
-                AccountId = acct_id,
-                ProvisioningStatus = 'LATEST_PERMISSION_SET_PROVISIONED')
+                AccountId = acct_id)
             .build_full_result()
         )
         return (results.pop('PermissionSets', None))
@@ -69,8 +68,7 @@ def get_accounts_for_provisioned_permission_set(ctx, ps_arn):
                 'list_accounts_for_provisioned_permission_set')
             .paginate(
                 InstanceArn = ctx.instance_arn,
-                PermissionSetArn = ps_arn,
-                ProvisioningStatus = 'LATEST_PERMISSION_SET_PROVISIONED')
+                PermissionSetArn = ps_arn)
             .build_full_result()
         )
         return (results.pop('AccountIds', None))
