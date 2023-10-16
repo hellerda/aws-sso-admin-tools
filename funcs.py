@@ -138,6 +138,35 @@ def get_user_name_by_id(ctx, user_id):
         return None
 
 
+def get_group_memberships_for_user(ctx, user_id):
+
+    identitystore_client = ctx.session.client('identitystore')
+
+    found_groups = []
+
+    try:
+        paginator = identitystore_client.get_paginator('list_groups')
+
+        for page in paginator.paginate(IdentityStoreId = ctx.identitystore_id):
+            for group in page["Groups"]:
+
+                paginator2 = identitystore_client.get_paginator('list_group_memberships')
+
+                for page in paginator2.paginate(
+                    IdentityStoreId = ctx.identitystore_id,
+                    GroupId = group['GroupId']
+                ):
+                    for member in page["GroupMemberships"]:
+                        if member['MemberId']['UserId'] == user_id:
+                            found_groups.append(group)
+
+        return found_groups
+
+    except Exception as e:
+        print("Error: %s" % str(e))
+        exit(1)
+
+
 # --------------------------------------------------------------------------------------------------
 # Build AWS context including boto3 session...
 # --------------------------------------------------------------------------------------------------

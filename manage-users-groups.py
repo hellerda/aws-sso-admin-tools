@@ -35,6 +35,7 @@ def main():
     get-group-memberships
     list-group-memberships
     delete-group-memberships
+    list-all-group-memberships-for-user
     '''.rstrip()
 
     usage = 'usage: %prog command [options]\n   ex: %prog create-group --group_name MyGroup\n'
@@ -87,6 +88,9 @@ def main():
         elif op == 'get-users':
             operation = op
         elif op == 'list-users':
+            operation = op
+        elif op == 'list-all-group-memberships-for-user':
+            need_user_name()
             operation = op
         elif op == 'create-group-memberships':
             need_group_name()
@@ -417,6 +421,26 @@ def main():
             except Exception as e:
                 print("Error: %s" % str(e))
                 exit(1)
+
+
+        elif operation == 'list-all-group-memberships-for-user':
+
+            user_id = get_user_id_by_name(ctx, options.user_name)
+            if user_id == None:
+                print('User \'%s\' not found.' % options.user_name)
+                exit(1)
+            print('Listing all group memberships for \"%s\"...' % options.user_name)
+
+            group_names = []
+            for group in get_group_memberships_for_user(ctx, user_id):
+                group_names.append(group['DisplayName'])
+
+            if group_names == []:
+                print('- None found.')
+                exit(1)
+
+            for group in sorted(group_names):
+                print(group)
 
 
 
