@@ -49,6 +49,7 @@ python manage-users-groups.py describe-user --user-name "ima.user@my.org"
 python manage-users-groups.py describe-group --group-name "App1_Deployers"
 python manage-users-groups.py get-group-memberships --group-name "App1_Deployers"
 python manage-users-groups.py list-group-memberships --group-name "App1_Deployers"
+python manage-users-groups.py list-all-group-memberships-for-user --user-name "ima.user@my.org"
 
 python manage-users-groups.py delete-group-memberships --group-name "App1_Deployers"
 python manage-users-groups.py delete-users
