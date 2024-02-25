@@ -33,9 +33,12 @@ def main():
     list-users
     create-group-memberships
     get-group-memberships
-    list-group-memberships
     delete-group-memberships
+    list-group-memberships
     list-all-group-memberships-for-user
+    create-group-membership
+    get-group-membership
+    delete-group-membership
     '''.rstrip()
 
     usage = 'usage: %prog command [options]\n   ex: %prog create-group --group_name MyGroup\n'
@@ -98,11 +101,23 @@ def main():
         elif op == 'get-group-memberships':
             need_group_name()
             operation = op
+        elif op == 'delete-group-memberships':
+            need_group_name()
+            operation = op
         elif op == 'list-group-memberships':
             need_group_name()
             operation = op
-        elif op == 'delete-group-memberships':
+        elif op == 'create-group-membership':
             need_group_name()
+            need_user_name()
+            operation = op
+        elif op == 'get-group-membership':
+            need_group_name()
+            need_user_name()
+            operation = op
+        elif op == 'delete-group-membership':
+            need_group_name()
+            need_user_name()
             operation = op
         else:
             print('Unknown command: %s\n' % op)
@@ -441,6 +456,78 @@ def main():
 
             for group in sorted(group_names):
                 print(group)
+
+
+        elif operation == 'create-group-membership':
+
+            group_id = get_group_id_by_name(ctx, options.group_name)
+            if group_id == None:
+                print('Group \'%s\' not found.' % options.group_name)
+                exit(1)
+
+            user_id = get_user_id_by_name(ctx, options.user_name)
+            if user_id == None:
+                print('User \'%s\' not found.' % options.user_name)
+                exit(1)
+
+            try:
+                response = identitystore_client.create_group_membership (
+                    IdentityStoreId = identitystore_id,
+                    GroupId = group_id,
+                    MemberId = {
+                        'UserId': user_id
+                    }
+                )
+                print('User: \"%s\" now has MEMBERSHIP_ID: %s in Group: \"%s\"' %
+                    (options.user_name, response['MembershipId'], options.group_name))
+
+            except identitystore_client.exceptions.ConflictException:
+                print('User: \"%s\" already has a membership in Group: \"%s\"' %
+                    (options.user_name, options.group_name))
+
+            except Exception as e:
+                print("Error: %s" % str(e))
+                exit(1)
+
+
+        elif operation == 'get-group-membership' or operation == 'delete-group-membership':
+
+            group_id = get_group_id_by_name(ctx, options.group_name)
+            if group_id == None:
+                print('Group \'%s\' not found.' % options.group_name)
+                exit(1)
+
+            user_id = get_user_id_by_name(ctx, options.user_name)
+            if user_id == None:
+                print('User \'%s\' not found.' % options.user_name)
+                exit(1)
+
+            try:
+                response = identitystore_client.get_group_membership_id (
+                    IdentityStoreId = identitystore_id,
+                    GroupId = group_id,
+                    MemberId = {
+                        'UserId': user_id
+                    }
+                )
+                print('User: \"%s\" has MEMBERSHIP_ID: %s in Group: \"%s\"' %
+                    (options.user_name, response['MembershipId'], options.group_name))
+
+                if operation == 'delete-group-membership':
+
+                    print('Removing membership.')
+                    _ = identitystore_client.delete_group_membership (
+                        IdentityStoreId = identitystore_id,
+                        MembershipId = response['MembershipId'],
+                    )
+
+            except identitystore_client.exceptions.ResourceNotFoundException:
+                print('User: \"%s\" has no membership in Group: \"%s\"' %
+                    (options.user_name, options.group_name))
+
+            except Exception as e:
+                print("Error: %s" % str(e))
+                exit(1)
 
 
 

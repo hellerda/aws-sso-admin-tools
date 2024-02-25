@@ -35,25 +35,30 @@ python funcs.py lookup-ps-name --ps-arn "arn:aws:sso:::permissionSet/ssoins-dead
 
 NOTE: Any operation that modifies a User or Group resource can result in inconsistences or conflicts when your Identity Center uses an external IdP such as Azure AD.  If this is not intended you should disallow these operations in IAM policy.  All the r/o operations are safe, though.
 
-NOTE: Some operations still require the bulk ```user_list``` to be set in the program (see "Customize this").  This will be fixed in future release.
+NOTE: For bulk operations, update ```user_list``` in the program (see "Customize this").
 ```
-python manage-users-groups.py create-group
 python manage-users-groups.py create-group --group-name "App1_Deployers" --group-desc "Can deploy the sample app"
-python manage-users-groups.py create-users
-python manage-users-groups.py create-group-memberships --group-name "App1_Deployers"
+python manage-users-groups.py describe-group --group-name "App1_Deployers"
+python manage-users-groups.py delete-group --group-name "App1_Deployers"
 
 python manage-users-groups.py list-users
 python manage-users-groups.py list-groups
-python manage-users-groups.py get-users
 python manage-users-groups.py describe-user --user-name "ima.user@my.org"
-python manage-users-groups.py describe-group --group-name "App1_Deployers"
-python manage-users-groups.py get-group-memberships --group-name "App1_Deployers"
 python manage-users-groups.py list-group-memberships --group-name "App1_Deployers"
 python manage-users-groups.py list-all-group-memberships-for-user --user-name "ima.user@my.org"
 
-python manage-users-groups.py delete-group-memberships --group-name "App1_Deployers"
+# Bulk operations on users:
+python manage-users-groups.py create-users
+python manage-users-groups.py get-users
 python manage-users-groups.py delete-users
-python manage-users-groups.py delete-group --group-name "App1_Deployers"
+python manage-users-groups.py create-group-memberships --group-name "App1_Deployers"
+python manage-users-groups.py get-group-memberships --group-name "App1_Deployers"
+python manage-users-groups.py delete-group-memberships --group-name "App1_Deployers"
+
+# Operations on individual users:
+python manage-users-groups.py create-group-membership --group-name "App1_Deployers" --user-name "ima.user@my.org"
+python manage-users-groups.py get-group-membership --group-name "App1_Deployers" --user-name "ima.user@my.org"
+python manage-users-groups.py delete-group-membership --group-name "App1_Deployers" --user-name "ima.user@my.org"
 ```
 
 ## Permission Set operations
