@@ -141,6 +141,7 @@ def main():
     list-all-permission-sets-in-org
     list-all-permission-set-assignments-in-account
     list-all-permission-set-assignments-in-ou
+    verify-access-for-user
     '''.rstrip()
 
     usage = 'usage: %prog command [options]\n   ex: %prog list-accounts-for-provisioned-permission-set --ps-name MyPermissionSet\n'
@@ -230,6 +231,11 @@ def main():
             operation = op
         elif op == 'list-all-permission-set-assignments-in-ou':
             need_ou_name()
+            operation = op
+        elif op == 'verify-access-for-user':
+            need_acct_id()
+            need_ps_name()
+            need_user_name()
             operation = op
         else:
             print('Unknown command: %s\n' % op)
@@ -627,6 +633,61 @@ def main():
                         for ps_arn in ps_arns:
                             print('PS: %s' % get_permission_set_name_by_arn(ctx, ps_arn))
                             list_assigned_principals_for_ps_in_account(ctx, acct_id, ps_arn)
+
+
+        # --------------------------------------------------------------------------
+        # Verify a permission assignment for a user
+        # --------------------------------------------------------------------------
+        elif operation == 'verify-access-for-user':
+
+            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+            if ps_arn == None:
+                print('permission set \'%s\' not found.' % options.ps_name)
+                exit(1)
+
+            user_id = get_user_id_by_name(ctx, options.user_name)
+            if user_id == None:
+                print('User \'%s\' not found.' % options.user_name)
+                exit(1)
+
+            print('Verifying assigment of PS \'%s\' for user \'%s\' in account: %s...' %
+                (options.ps_name, options.user_name, options.acct_id))
+
+            access_verified = False
+
+            group_list = get_group_memberships_for_user(ctx, user_id)
+
+            paginator = sso_admin_client.get_paginator('list_account_assignments')
+            for page in paginator.paginate(
+                InstanceArn = ctx.instance_arn,
+                AccountId = options.acct_id,
+                PermissionSetArn = ps_arn
+            ):
+                for item in page['AccountAssignments']:
+
+                    # For a direct AA to user, check if it is our target user...
+                    if (item['PrincipalType'] == 'USER') and (options.user_name != None):
+                        if item['PrincipalId'] == user_id:
+                            access_verified = True
+                            print('- Found (user direct) acct assignment: Acct: %s, PS: %s' %
+                                  (options.acct_id, get_permission_set_name_by_arn(ctx, ps_arn)))
+
+                    # For AA to group, check if our target user is member...
+                    if (item['PrincipalType'] == 'GROUP'):
+                        for group in group_list:
+                            (group_name, group_id) = (group['DisplayName'], group['GroupId'])
+
+                            if item['PrincipalId'] == group_id:
+                                access_verified = True
+                                print('- Found (group: \'%s\') acct assignment: Acct: %s, PS: %s' %
+                                      (get_group_name_by_id(ctx, group_id), options.acct_id, get_permission_set_name_by_arn(ctx, ps_arn)))
+
+            if access_verified == True:
+                print('Access verified :-)')
+                exit(0)
+            else:
+                print('Access NOT verified :-(')
+                exit(1)
 
 
 

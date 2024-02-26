@@ -250,4 +250,6 @@ python manage-account-assignments.py list-all-permission-set-assignments-in-acco
 
 python manage-account-assignments.py list-all-permission-set-assignments-in-ou --ou-name "IT"
 python manage-account-assignments.py list-all-permission-set-assignments-in-ou --ou-name "Sandbox"
+
+python manage-account-assignments.py verify-access-for-user --user-name "ima.user@my.org --ps-name "App1_Deployer" --acct-id 123456789012
 ```
