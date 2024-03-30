@@ -136,7 +136,6 @@ def main():
     list-accounts-for-provisioned-permission-set
     list-all-acct-assignments-for-provisioned-permission-set
     list-all-acct-assignments-for-principal
-    list-all-acct-assignments-for-user
     list-all-acct-assignments-for-ps-in-org
     list-all-permission-sets-in-org
     list-all-permission-set-assignments-in-account
@@ -215,9 +214,6 @@ def main():
             operation = op
         elif op == 'list-all-acct-assignments-for-principal':
             need_user_or_group_name()
-            operation = op
-        elif op == 'list-all-acct-assignments-for-user':
-            need_user_name()
             operation = op
         elif op == 'list-all-acct-assignments-for-ps-in-org':
             operation = op
@@ -311,7 +307,7 @@ def main():
                 if user_id == None:
                     print('User \'%s\' not found.' % options.user_name)
                     exit(1)
-                print('Assigning User \"%s\"...' % options.user_name)
+                print('Unassigning User \"%s\"...' % options.user_name)
                 PrincipalType = 'USER'
                 PrincipalId = user_id
             else:
@@ -319,7 +315,7 @@ def main():
                 if group_id == None:
                     print('Group \'%s\' not found.' % options.group_name)
                     exit(1)
-                print('Assigning Group \"%s\"...' % options.group_name)
+                print('Unassigning Group \"%s\"...' % options.group_name)
                 PrincipalType = 'GROUP'
                 PrincipalId = group_id
 
@@ -420,6 +416,8 @@ def main():
 
             user_id = None
             group_id = None
+            principal_id = None
+            principal_type = None
             assignments = {}
 
             if options.user_name != None:
@@ -427,112 +425,45 @@ def main():
                 if user_id == None:
                     print('User \'%s\' not found.' % options.user_name)
                     exit(1)
+                principal_id = user_id
+                principal_type = 'USER'
                 print('Listing all Account assignments for \"%s\"...' % options.user_name)
             else:
                 group_id = get_group_id_by_name(ctx, options.group_name)
                 if group_id == None:
                     print('Group \'%s\' not found.' % options.group_name)
                     exit(1)
+                principal_id = group_id
+                principal_type = 'GROUP'
                 print('Listing all Account assignments for \"%s\"...' % options.group_name)
 
-            paginator = sso_admin_client.get_paginator('list_permission_sets')
-            for page in paginator.paginate(InstanceArn = instance_arn):
+            paginator = sso_admin_client.get_paginator('list_account_assignments_for_principal')
+            for page in paginator.paginate(
+                InstanceArn = instance_arn,
+                PrincipalId = principal_id,
+                PrincipalType = principal_type
+            ):
+                for acct_asst in page['AccountAssignments']:
 
-                for ps_arn in page['PermissionSets']:
-                    print('Checking permission set \"%s\"...' %
-                          get_permission_set_name_by_arn(ctx, ps_arn), ' '*30, end='\r')
+                    ps_name = get_permission_set_name_by_arn(ctx, acct_asst['PermissionSetArn'])
 
-                    for acct_id in get_accounts_for_provisioned_permission_set(ctx, ps_arn):
+                    principal_name = ''
 
-                        paginator = sso_admin_client.get_paginator('list_account_assignments')
-                        for page in paginator.paginate(
-                            InstanceArn = ctx.instance_arn,
-                            AccountId = acct_id,
-                            PermissionSetArn = ps_arn
-                        ):
-                            for item in page['AccountAssignments']:
+                    if (acct_asst['PrincipalType'] == 'USER'):
+                        principal_name = get_user_name_by_id(ctx, acct_asst['PrincipalId'])
+                    elif (acct_asst['PrincipalType'] == 'GROUP'):
+                        principal_name = get_group_name_by_id(ctx, acct_asst['PrincipalId'])
 
-                                if (item['PrincipalType'] == 'USER') and (options.user_name != None):
-                                    if item['PrincipalId'] == user_id:
-                                        assignments.setdefault(acct_id, []).append(
-                                            get_permission_set_name_by_arn(ctx, ps_arn))
-
-                                elif (item['PrincipalType'] == 'GROUP'):
-                                    if item['PrincipalId'] == group_id:
-                                        assignments.setdefault(acct_id, []).append(
-                                            get_permission_set_name_by_arn(ctx, ps_arn))
+                    # Build a Dict where each value is list of tuples.
+                    assignments.setdefault(acct_asst['AccountId'], []).append(
+                        (ps_name, principal_name))
 
             for k, v in sorted(assignments.items()):
-                print(' '*60, end='\r')
-                print('Assigned PS in account \"%s\"...' % k)
-                for ps in sorted(v):
-                    print('- %s' % ps)
+                print('- Assigned PS in account \"%s\"...' % k)
 
-            print(' '*60, end='\r')
-
-
-        # ------------------------------------------------------------------------------------------
-        # This is our FULL view BY USER, listing account assignments by both USER and GROUP.
-        # - Output is similar to what user sees at AWS SSO Portal but we also show the user/group.
-        # ------------------------------------------------------------------------------------------
-        elif operation == 'list-all-acct-assignments-for-user':
-
-            user_id = get_user_id_by_name(ctx, options.user_name)
-            if user_id == None:
-                print('User \'%s\' not found.' % options.user_name)
-                exit(1)
-            print('Listing all Account assignments for \"%s\"...' % options.user_name)
-
-            group_list = get_group_memberships_for_user(ctx, user_id)
-
-            if group_list == []:
-                print('- None found.')
-                exit(1)
-
-            # Build a dict keyed by "acct_id" where each value is a list of tuples like (PS, principal).
-            assignments = {}
-
-            paginator = sso_admin_client.get_paginator('list_permission_sets')
-            for page in paginator.paginate(InstanceArn = instance_arn):
-
-                for ps_arn in page['PermissionSets']:
-
-                    for acct_id in get_accounts_for_provisioned_permission_set(ctx, ps_arn):
-                        ps_name = get_permission_set_name_by_arn(ctx, ps_arn)
-                        print('Checking permission set \"%s\" in account \"%s\"...' % (
-                            ps_name, acct_id), ' '*(32-len(ps_name)), end='\r')
-
-                        paginator = sso_admin_client.get_paginator('list_account_assignments')
-                        for page in paginator.paginate(
-                            InstanceArn = ctx.instance_arn,
-                            AccountId = acct_id,
-                            PermissionSetArn = ps_arn
-                        ):
-                            for item in page['AccountAssignments']:
-
-                                # For a direct AA to user, check if it is our target user...
-                                if (item['PrincipalType'] == 'USER') and (options.user_name != None):
-                                    if item['PrincipalId'] == user_id:
-                                        assignments.setdefault(acct_id, []).append(
-                                            (ps_name, options.user_name))
-
-                                # For AA to group, check if our target user is member...
-                                if (item['PrincipalType'] == 'GROUP'):
-                                    for group in group_list:
-                                        (group_name, group_id) = (group['DisplayName'], group['GroupId'])
-
-                                        if item['PrincipalId'] == group_id:
-                                            assignments.setdefault(acct_id, []).append(
-                                                (ps_name, group_name))
-
-            print('\r' + ' '*88, end='\r')
-
-            # Dump all acct assignments for this user...
-            for k, v in sorted(assignments.items()):
-                print(' '*60, end='\r')
-                print('- Assigned PS in account \"%s\":' % k)
-                for ps in sorted(v):
-                    print('  * %s (%s)' % ps)
+                for asst in sorted(v, key=lambda x: (x[0].lower(),x[1].lower())):
+                    (ps_name, principal_name) = asst
+                    print('  * %s (%s)' %  (ps_name, principal_name))
 
 
         # --------------------------------------------------------------------------

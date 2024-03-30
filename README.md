@@ -243,8 +243,6 @@ python manage-account-assignments.py list-all-acct-assignments-for-ps-in-org
 python manage-account-assignments.py list-all-acct-assignments-for-principal --user-name "ima.user@my.org"
 python manage-account-assignments.py list-all-acct-assignments-for-principal --group-name "App1_Deployers"
 
-python manage-account-assignments.py list-all-acct-assignments-for-user --user-name "ima.user@my.org"
-
 python manage-account-assignments.py list-permission-sets-provisioned-to-account --acct-id 123456789012
 python manage-account-assignments.py list-all-permission-set-assignments-in-account --acct-id 123456789012
 
