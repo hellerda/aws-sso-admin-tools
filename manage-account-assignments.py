@@ -567,7 +567,7 @@ def main():
 
 
         # --------------------------------------------------------------------------
-        # Verify a permission assignment for a user
+        # Verify a permission assignment for a user.
         # --------------------------------------------------------------------------
         elif operation == 'verify-access-for-user':
 
@@ -584,41 +584,21 @@ def main():
             print('Verifying assigment of PS \'%s\' for user \'%s\' in account: %s...' %
                 (options.ps_name, options.user_name, options.acct_id))
 
-            access_verified = False
-
-            group_list = get_group_memberships_for_user(ctx, user_id)
-
-            paginator = sso_admin_client.get_paginator('list_account_assignments')
+            paginator = sso_admin_client.get_paginator('list_account_assignments_for_principal')
             for page in paginator.paginate(
-                InstanceArn = ctx.instance_arn,
-                AccountId = options.acct_id,
-                PermissionSetArn = ps_arn
+                Filter={'AccountId': options.acct_id},
+                InstanceArn = instance_arn,
+                PrincipalId = user_id,
+                PrincipalType = 'USER'
             ):
                 for item in page['AccountAssignments']:
 
-                    # For a direct AA to user, check if it is our target user...
-                    if (item['PrincipalType'] == 'USER') and (options.user_name != None):
-                        if item['PrincipalId'] == user_id:
-                            access_verified = True
-                            print('- Found (user direct) acct assignment: Acct: %s, PS: %s' %
-                                  (options.acct_id, get_permission_set_name_by_arn(ctx, ps_arn)))
+                    if item['PermissionSetArn'] == ps_arn:
+                        print('Access verified.')
+                        exit(0)
 
-                    # For AA to group, check if our target user is member...
-                    if (item['PrincipalType'] == 'GROUP'):
-                        for group in group_list:
-                            (group_name, group_id) = (group['DisplayName'], group['GroupId'])
-
-                            if item['PrincipalId'] == group_id:
-                                access_verified = True
-                                print('- Found (group: \'%s\') acct assignment: Acct: %s, PS: %s' %
-                                      (get_group_name_by_id(ctx, group_id), options.acct_id, get_permission_set_name_by_arn(ctx, ps_arn)))
-
-            if access_verified == True:
-                print('Access verified :-)')
-                exit(0)
-            else:
-                print('Access NOT verified :-(')
-                exit(1)
+            print('Access NOT verified.')
+            exit(1)
 
 
 
