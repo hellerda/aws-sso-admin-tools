@@ -98,6 +98,29 @@ def get_organizational_root(ctx):
         exit(1)
 
 
+def get_account_name(ctx, acct_id):
+    '''
+    Get an account name (requires DescribeAccount permission)
+    '''
+
+    organizations_client = ctx.session.client('organizations')
+
+    try:
+        response = organizations_client.describe_account (
+            AccountId = acct_id
+        )
+
+        if response['Account']['Name'] != None:
+            return response['Account']['Name']
+
+    except organizations_client.exceptions.AccountNotFoundException as e:
+        return ''
+
+    except Exception as e:
+        print("Error while looking up account name: %s" % str(e))
+        exit(1)
+
+
 def get_ou_id_by_name(ctx, ou_name):
     '''
     Lookup an OU (requires ListOrganizationalUnitsForParent)
@@ -159,6 +182,9 @@ def main():
                       help='Group name')
     parser.add_option('--ou-name', dest='ou_name', default=None,
                       help='OU name')
+    parser.add_option('--show-acct-names', dest='show_acct_names', default=False,
+                      action='store_true',
+                      help='Show account names where applicable')
 
     (options, args) = parser.parse_args()
 
@@ -459,8 +485,15 @@ def main():
                         (ps_name, principal_name))
 
             for k, v in sorted(assignments.items()):
-                print('- Assigned PS in account \"%s\"...' % k)
 
+                # For each account...
+                if options.show_acct_names == False:
+                    print('- Assigned PS in account \"%s\"...' % k)
+                else:
+                    print('- Assigned PS in account "%s" --- ("%s")...' %
+                        (k, get_account_name(ctx, k)))
+
+                # Show all accesses in the account.
                 for asst in sorted(v, key=lambda x: (x[0].lower(),x[1].lower())):
                     (ps_name, principal_name) = asst
                     print('  * %s (%s)' %  (ps_name, principal_name))
