@@ -4,7 +4,7 @@
 '''
 A simple tool for managing account assignments in AWS Identity Center.
 
-(c) Copyright Dave Heller 2023
+(c) Copyright Dave Heller 2024
 '''
 
 import json
@@ -19,7 +19,13 @@ from optparse import OptionParser
 # --------------------------------------------------------------------------------------------------
 # Functions...
 # --------------------------------------------------------------------------------------------------
-def list_assigned_principals_for_ps_in_account(ctx, acct_id, ps_arn):
+def list_assigned_principals_for_ps_in_account(ctx, indent, acct_id, ps_arn):
+
+    bullet = ''
+    if indent == 1:
+        bullet = '- '
+    elif indent == 2:
+        bullet = '  * '
 
     sso_admin_client = ctx.session.client('sso-admin')
 
@@ -33,9 +39,9 @@ def list_assigned_principals_for_ps_in_account(ctx, acct_id, ps_arn):
         for item in page['AccountAssignments']:
 
             if (item['PrincipalType'] == 'USER'):
-                print('- USER: %s' % get_user_name_by_id(ctx, item['PrincipalId']))
+                print('%sUSER: %s' % (bullet, get_user_name_by_id(ctx, item['PrincipalId'])))
             elif (item['PrincipalType'] == 'GROUP'):
-                print('- GROUP: %s' % get_group_name_by_id(ctx, item['PrincipalId']))
+                print('%sGROUP: %s' % (bullet, get_group_name_by_id(ctx, item['PrincipalId'])))
 
 
 def get_ps_provisioned_to_account(ctx, acct_id):
@@ -399,7 +405,7 @@ def main():
             print('Listing assigned principals for PS \'%s\' in account: %s...' %
                 (options.ps_name, options.acct_id))
 
-            list_assigned_principals_for_ps_in_account(ctx, options.acct_id, ps_arn)
+            list_assigned_principals_for_ps_in_account(ctx, 1, options.acct_id, ps_arn)
 
 
         # --------------------------------------------------------------------------
@@ -415,7 +421,12 @@ def main():
             print('Listing assigned accounts for PS \'%s\'...' % options.ps_name)
 
             for acct_id in get_accounts_for_provisioned_permission_set(ctx, ps_arn):
-                print('- %s' % acct_id)
+
+                if options.show_acct_names == False:
+                    print('- %s' % acct_id)
+                else:
+                    print('- %s -- ("%s")' % (acct_id, get_account_name(ctx, acct_id)))
+
 
 
         # --------------------------------------------------------------------------
@@ -431,8 +442,13 @@ def main():
             print('Listing assigned accounts for PS \'%s\'...' % options.ps_name)
 
             for acct_id in get_accounts_for_provisioned_permission_set(ctx, ps_arn):
-                print('ACCT: %s' % acct_id)
-                list_assigned_principals_for_ps_in_account(ctx, acct_id, ps_arn)
+
+                if options.show_acct_names == False:
+                    print('ACCT: %s...' % acct_id)
+                else:
+                    print('ACCT: %s --- ("%s")...' % (acct_id, get_account_name(ctx, acct_id)))
+
+                list_assigned_principals_for_ps_in_account(ctx, 1, acct_id, ps_arn)
 
 
         # --------------------------------------------------------------------------
@@ -506,17 +522,29 @@ def main():
 
             print('Listing all Permission Set assignments in the Organization...')
 
+            ps_list = []
             paginator = sso_admin_client.get_paginator('list_permission_sets')
 
             for page in paginator.paginate(InstanceArn = instance_arn):
 
                 for ps_arn in page['PermissionSets']:
-                    print('Listing account assignments for PS \'%s\'...' %
-                        get_permission_set_name_by_arn(ctx, ps_arn))
+                    ps_name = get_permission_set_name_by_arn(ctx, ps_arn)
+                    ps_list.append((ps_name, ps_arn))
+                    print('Checking permission set "%s"...' % ps_name, ' '*30, end='\r')
 
-                    for acct_id in get_accounts_for_provisioned_permission_set(ctx, ps_arn):
-                        print('ACCT: %s' % acct_id)
-                        list_assigned_principals_for_ps_in_account(ctx, acct_id, ps_arn)
+            for ps_name, ps_arn in sorted(ps_list):
+
+                print('Listing account assignments for PS "%s"...' % ps_name)
+
+                for acct_id in get_accounts_for_provisioned_permission_set(ctx, ps_arn):
+
+                    if options.show_acct_names == False:
+                        print('- ACCT: %s...' % acct_id)
+                    else:
+                        print('- ACCT: %s --- ("%s")...' %
+                              (acct_id, get_account_name(ctx, acct_id)))
+
+                    list_assigned_principals_for_ps_in_account(ctx, 2, acct_id, ps_arn)
 
 
         # --------------------------------------------------------------------------
@@ -549,7 +577,11 @@ def main():
         # --------------------------------------------------------------------------
         elif operation == 'list-permission-sets-provisioned-to-account':
 
-            print('Listing Permission Sets provisioned to account: %s...' % options.acct_id)
+            if options.show_acct_names == False:
+                print('Listing Permission Sets provisioned to account: %s...' % options.acct_id)
+            else:
+                print('Listing Permission Sets provisioned to account: %s -- ("%s")...' % (
+                    options.acct_id, get_account_name(ctx, options.acct_id)))
 
             ps_arns = get_ps_provisioned_to_account(ctx, options.acct_id)
 
@@ -564,7 +596,11 @@ def main():
         # --------------------------------------------------------------------------
         elif operation == 'list-all-permission-set-assignments-in-account':
 
-            print('Listing all Permission Set assignments in account: %s...' % options.acct_id)
+            if options.show_acct_names == False:
+                print('Listing all Permission Sets assignments in account: %s...' % options.acct_id)
+            else:
+                print('Listing all Permission Sets assignments in account: %s -- ("%s")...' % (
+                    options.acct_id, get_account_name(ctx, options.acct_id)))
 
             ps_arns = get_ps_provisioned_to_account(ctx, options.acct_id)
 
@@ -572,7 +608,7 @@ def main():
 
                 for ps_arn in ps_arns:
                     print('PS: %s' % get_permission_set_name_by_arn(ctx, ps_arn))
-                    list_assigned_principals_for_ps_in_account(ctx, options.acct_id, ps_arn)
+                    list_assigned_principals_for_ps_in_account(ctx, 1, options.acct_id, ps_arn)
 
 
         # --------------------------------------------------------------------------
@@ -589,14 +625,21 @@ def main():
             ):
                 for item in page['Accounts']:
                     acct_id = item['Id']
-                    print('Listing all Permission Set assignments in account: %s...' % acct_id)
+                    acct_name = item['Name']
+
+                    if options.show_acct_names == False:
+                        print('Listing all Permission Set assignments in account: %s...' % acct_id)
+                    else:
+                        print('Listing all Permission Set assignments in account: %s -- ("%s")...' %
+                            (acct_id, acct_name))
+
                     ps_arns = get_ps_provisioned_to_account(ctx, acct_id)
 
                     if ps_arns != None:
 
                         for ps_arn in ps_arns:
-                            print('PS: %s' % get_permission_set_name_by_arn(ctx, ps_arn))
-                            list_assigned_principals_for_ps_in_account(ctx, acct_id, ps_arn)
+                            print('- PS: %s' % get_permission_set_name_by_arn(ctx, ps_arn))
+                            list_assigned_principals_for_ps_in_account(ctx, 2, acct_id, ps_arn)
 
 
         # --------------------------------------------------------------------------
