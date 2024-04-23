@@ -528,11 +528,17 @@ def main():
             for page in paginator.paginate(InstanceArn = instance_arn):
 
                 for ps_arn in page['PermissionSets']:
-                    ps_name = get_permission_set_name_by_arn(ctx, ps_arn)
+
+                    ps = sso_admin_client.describe_permission_set (
+                        InstanceArn = ctx.instance_arn,
+                        PermissionSetArn = ps_arn
+                    )
+                    ps_name = ps['PermissionSet']['Name']
+
                     ps_list.append((ps_name, ps_arn))
                     print('Checking permission set "%s"...' % ps_name, ' '*30, end='\r')
 
-            for ps_name, ps_arn in sorted(ps_list):
+            for ps_name, ps_arn in sorted(ps_list, key=lambda x: x[0].lower()):
 
                 print('Listing account assignments for PS "%s"...' % ps_name)
 
@@ -554,6 +560,7 @@ def main():
 
             print('Listing all Permission Sets in the Organization...')
 
+            ps_list = []
             paginator = sso_admin_client.get_paginator('list_permission_sets')
 
             for page in paginator.paginate(InstanceArn = instance_arn):
@@ -568,14 +575,22 @@ def main():
                     ps_dura = ps['PermissionSet']['SessionDuration']
                     ps_desc = ps['PermissionSet'].pop('Description', '-')
 
-                    print('PS: \"%s\"  Description: \"%s\" (%s)' %
-                          (ps_name, ps_desc, ps_dura))
+                    ps_list.append((ps_name, ps_arn, ps_dura, ps_desc))
+
+                    print('Checking permission set "%s"...' % ps_name, ' '*30, end='\r')
+
+            for ps_name, ps_arn, ps_dura, ps_desc in sorted(ps_list, key=lambda x: x[0].lower()):
+
+                print('PS: \"%s\"  Description: \"%s\" (%s)' %
+                        (ps_name, ps_desc, ps_dura))
 
 
         # --------------------------------------------------------------------------
         # This is our BASIC view BY ACCOUNT.
         # --------------------------------------------------------------------------
         elif operation == 'list-permission-sets-provisioned-to-account':
+
+            ps_list = []
 
             if options.show_acct_names == False:
                 print('Listing Permission Sets provisioned to account: %s...' % options.acct_id)
@@ -588,13 +603,31 @@ def main():
             if ps_arns != None:
 
                 for ps_arn in ps_arns:
-                    print('- %s' % get_permission_set_name_by_arn(ctx, ps_arn))
+
+                    ps = sso_admin_client.describe_permission_set (
+                        InstanceArn = ctx.instance_arn,
+                        PermissionSetArn = ps_arn
+                    )
+                    ps_name = ps['PermissionSet']['Name']
+                    ps_dura = ps['PermissionSet']['SessionDuration']
+                    ps_desc = ps['PermissionSet'].pop('Description', '-')
+
+                    ps_list.append((ps_name, ps_arn, ps_dura, ps_desc))
+
+                    print('Checking permission set "%s"...' % ps_name, ' '*30, end='\r')
+
+            for ps_name, ps_arn, ps_dura, ps_desc in sorted(ps_list, key=lambda x: x[0].lower()):
+
+                print('PS: \"%s\"  Description: \"%s\" (%s)' %
+                        (ps_name, ps_desc, ps_dura))
 
 
         # --------------------------------------------------------------------------
         # This is our FULL view BY ACCOUNT.
         # --------------------------------------------------------------------------
         elif operation == 'list-all-permission-set-assignments-in-account':
+
+            ps_list = []
 
             if options.show_acct_names == False:
                 print('Listing all Permission Sets assignments in account: %s...' % options.acct_id)
@@ -607,8 +640,25 @@ def main():
             if ps_arns != None:
 
                 for ps_arn in ps_arns:
-                    print('PS: %s' % get_permission_set_name_by_arn(ctx, ps_arn))
-                    list_assigned_principals_for_ps_in_account(ctx, 1, options.acct_id, ps_arn)
+
+                    ps = sso_admin_client.describe_permission_set (
+                        InstanceArn = ctx.instance_arn,
+                        PermissionSetArn = ps_arn
+                    )
+                    ps_name = ps['PermissionSet']['Name']
+                    ps_dura = ps['PermissionSet']['SessionDuration']
+                    ps_desc = ps['PermissionSet'].pop('Description', '-')
+
+                    ps_list.append((ps_name, ps_arn, ps_dura, ps_desc))
+
+                    print('Checking permission set "%s"...' % ps_name, ' '*30, end='\r')
+
+            for ps_name, ps_arn, ps_dura, ps_desc in sorted(ps_list, key=lambda x: x[0].lower()):
+
+                print('PS: \"%s\"  Description: \"%s\" (%s)' %
+                        (ps_name, ps_desc, ps_dura))
+
+                list_assigned_principals_for_ps_in_account(ctx, 1, options.acct_id, ps_arn)
 
 
         # --------------------------------------------------------------------------
@@ -620,26 +670,46 @@ def main():
 
             print('Listing all Permission Set assignments in OU: %s...' % options.ou_name)
 
+            acct_list = []
+
             for page in organizations_client.get_paginator('list_accounts_for_parent').paginate(
                 ParentId = ou_id
             ):
                 for item in page['Accounts']:
-                    acct_id = item['Id']
-                    acct_name = item['Name']
+                    acct_list.append((item['Id'], item['Name']))
 
-                    if options.show_acct_names == False:
-                        print('Listing all Permission Set assignments in account: %s...' % acct_id)
-                    else:
-                        print('Listing all Permission Set assignments in account: %s -- ("%s")...' %
-                            (acct_id, acct_name))
+            sort_key = 0 if options.show_acct_names == False else 1
+            for acct_id, acct_name in sorted(acct_list, key=lambda x: x[sort_key].lower()):
 
-                    ps_arns = get_ps_provisioned_to_account(ctx, acct_id)
+                if options.show_acct_names == False:
+                    print('Listing all Permission Set assignments in account: %s...' % acct_id)
+                else:
+                    print('Listing all Permission Set assignments in account: %s -- ("%s")...' %
+                        (acct_id, acct_name))
 
-                    if ps_arns != None:
+                ps_list = []
+                ps_arns = get_ps_provisioned_to_account(ctx, acct_id)
 
-                        for ps_arn in ps_arns:
-                            print('- PS: %s' % get_permission_set_name_by_arn(ctx, ps_arn))
-                            list_assigned_principals_for_ps_in_account(ctx, 2, acct_id, ps_arn)
+                if ps_arns != None:
+
+                    for ps_arn in ps_arns:
+
+                        ps = sso_admin_client.describe_permission_set (
+                            InstanceArn = ctx.instance_arn,
+                            PermissionSetArn = ps_arn
+                        )
+                        ps_name = ps['PermissionSet']['Name']
+                        ps_dura = ps['PermissionSet']['SessionDuration']
+                        ps_desc = ps['PermissionSet'].pop('Description', '-')
+
+                        ps_list.append((ps_name, ps_arn, ps_dura, ps_desc))
+
+                for ps_name, ps_arn, ps_dura, ps_desc in sorted(ps_list, key=lambda x: x[0].lower()):
+
+                    print('PS: \"%s\"  Description: \"%s\" (%s)' %
+                            (ps_name, ps_desc, ps_dura))
+
+                    list_assigned_principals_for_ps_in_account(ctx, 1, acct_id, ps_arn)
 
 
         # --------------------------------------------------------------------------
