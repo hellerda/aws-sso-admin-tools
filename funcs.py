@@ -4,10 +4,12 @@
 '''
 Common functions
 
-(c) Copyright Dave Heller 2023
+(c) Copyright Dave Heller 2024
 '''
 
 import boto3
+import logging
+import os
 import sys
 
 from optparse import OptionParser
@@ -186,7 +188,7 @@ class AWSContextManager:
 # --------------------------------------------------------------------------------------------------
 # Unit tests...
 # --------------------------------------------------------------------------------------------------
-def main():
+def run():
     cmds_usage = '''\nAvailable commands:
     test-funcs
     lookup-user-name
@@ -360,15 +362,38 @@ def main():
                 print(ps_arn)
 
 
-if __name__ == '__main__':
+# --------------------------------------------------------------------------------------------------
+# Main...
+# --------------------------------------------------------------------------------------------------
+def main():
     rc = 0
 
     try:
-        rc = main()
+        # Get loglevel from environment
+        try:
+            LOGLEVEL = os.environ.get('LOGLEVEL').upper()
+        except AttributeError as e:
+            LOGLEVEL = 'CRITICAL'
+
+        logging.basicConfig(level=LOGLEVEL)
+
+        rc = run()
+
+    except KeyboardInterrupt:
+        print('Killed by keyboard interrupt.')
+        try:
+            sys.exit(130)
+        except SystemExit:
+            os._exit(130)
 
     except Exception as e:
-        print("Error (%s) %s" % (e.__class__.__name__, e))
+        print('Error (%s) %s' % (e.__class__.__name__, e))
         rc = 1
         exit(rc)
 
-    sys.exit(rc)
+    return(rc)
+
+
+
+if __name__ == '__main__':
+    sys.exit(main())

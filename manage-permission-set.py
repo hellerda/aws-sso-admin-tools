@@ -4,10 +4,11 @@
 '''
 A simple tool for managing permission sets in AWS Identity Center.
 
-(c) Copyright Dave Heller 2023
+(c) Copyright Dave Heller 2024
 '''
 
 import json
+import logging
 import os
 import sys
 
@@ -163,9 +164,9 @@ def read_cm_policies_from_cmdline():
 
 
 # --------------------------------------------------------------------------------------------------
-# Main...
+# Run...
 # --------------------------------------------------------------------------------------------------
-def main():
+def run():
 
     cmds_usage = '''\nAvailable commands:
     create
@@ -817,12 +818,22 @@ def main():
                 print(json.dumps(response, indent=4, sort_keys=False, default=str))
 
 
-
-if __name__ == '__main__':
+# --------------------------------------------------------------------------------------------------
+# Main...
+# --------------------------------------------------------------------------------------------------
+def main():
     rc = 0
 
     try:
-        rc = main()
+        # Get loglevel from environment
+        try:
+            LOGLEVEL = os.environ.get('LOGLEVEL').upper()
+        except AttributeError as e:
+            LOGLEVEL = 'CRITICAL'
+
+        logging.basicConfig(level=LOGLEVEL)
+
+        rc = run()
 
     except KeyboardInterrupt:
         print('Killed by keyboard interrupt.')
@@ -832,8 +843,13 @@ if __name__ == '__main__':
             os._exit(130)
 
     except Exception as e:
-        print("Error (%s) %s" % (e.__class__.__name__, e))
+        print('Error (%s) %s' % (e.__class__.__name__, e))
         rc = 1
         exit(rc)
 
-    sys.exit(rc)
+    return(rc)
+
+
+
+if __name__ == '__main__':
+    sys.exit(main())
