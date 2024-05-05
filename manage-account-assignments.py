@@ -8,6 +8,7 @@ A simple tool for managing account assignments in AWS Identity Center.
 '''
 
 import json
+import logging
 import os
 import sys
 
@@ -153,9 +154,9 @@ def get_ou_id_by_name(ctx, ou_name):
 
 
 # --------------------------------------------------------------------------------------------------
-# Main...
+# Run...
 # --------------------------------------------------------------------------------------------------
-def main():
+def run():
 
     cmds_usage = '''\nAvailable commands:
     create-account-assignment
@@ -747,12 +748,22 @@ def main():
             exit(1)
 
 
-
-if __name__ == '__main__':
+# --------------------------------------------------------------------------------------------------
+# Main...
+# --------------------------------------------------------------------------------------------------
+def main():
     rc = 0
 
     try:
-        rc = main()
+        # Get loglevel from environment
+        try:
+            LOGLEVEL = os.environ.get('LOGLEVEL').upper()
+        except AttributeError as e:
+            LOGLEVEL = 'CRITICAL'
+
+        logging.basicConfig(level=LOGLEVEL)
+
+        rc = run()
 
     except KeyboardInterrupt:
         print('Killed by keyboard interrupt.')
@@ -762,8 +773,13 @@ if __name__ == '__main__':
             os._exit(130)
 
     except Exception as e:
-        print("Error (%s) %s" % (e.__class__.__name__, e))
+        print('Error (%s) %s' % (e.__class__.__name__, e))
         rc = 1
         exit(rc)
 
-    sys.exit(rc)
+    return(rc)
+
+
+
+if __name__ == '__main__':
+    sys.exit(main())
