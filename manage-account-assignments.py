@@ -153,6 +153,49 @@ def get_ou_id_by_name(ctx, ou_name):
         exit(1)
 
 
+# ------------------------------------------------------------------------------
+# This is still a work in progress...
+# ------------------------------------------------------------------------------
+def get_target_arns_for_ps(ctx, ps_arn):
+    '''
+    Determine if PS is assume-role type and return list of target arns
+    '''
+
+    sso_admin_client = ctx.session.client('sso-admin')
+
+    try:
+        response = sso_admin_client.get_inline_policy_for_permission_set (
+            InstanceArn = ctx.instance_arn,
+            PermissionSetArn = ps_arn
+        )
+
+        # PS has no inline policy.
+        if response['InlinePolicy'] == '':
+            return []
+
+        policy = json.loads(response['InlinePolicy'])
+
+        if not isinstance(policy['Statement'], dict):
+            logging.info('This is not a SIMPLE permissions policy, in PS arn "%s"' % ps_arn)
+            return []
+
+        arns_list = []
+        if (policy['Statement']['Action'] == 'sts:AssumeRole'):
+            arns_list = policy['Statement']['Resource']
+            if not isinstance(arns_list, list):
+                return []
+            else:
+                return arns_list
+
+        else:
+            logging.info('This is NOT an AssumeRole permissions policy, in PS arn "%s"' % ps_arn)
+            return []
+
+    except Exception as e:
+        print("Error in get_target_arns_for_ps(): %s" % str(e))
+        exit(1)
+
+
 # --------------------------------------------------------------------------------------------------
 # Run...
 # --------------------------------------------------------------------------------------------------
@@ -192,6 +235,9 @@ def run():
     parser.add_option('--show-acct-names', dest='show_acct_names', default=False,
                       action='store_true',
                       help='Show account names where applicable')
+    parser.add_option('--show-target-arns', dest='show_target_arns', default=False,
+                      action='store_true',
+                      help='Show assume-role target Arns for a PS')
 
     (options, args) = parser.parse_args()
 
@@ -429,7 +475,6 @@ def run():
                     print('- %s -- ("%s")' % (acct_id, get_account_name(ctx, acct_id)))
 
 
-
         # --------------------------------------------------------------------------
         # This is our FULL view BY PERMISSION SET.
         # --------------------------------------------------------------------------
@@ -498,8 +543,14 @@ def run():
                         principal_name = get_group_name_by_id(ctx, acct_asst['PrincipalId'])
 
                     # Build a Dict where each value is list of tuples.
-                    assignments.setdefault(acct_asst['AccountId'], []).append(
-                        (ps_name, principal_name))
+                    if options.show_target_arns == False:
+                        assignments.setdefault(acct_asst['AccountId'], []).append(
+                            (ps_name, principal_name))
+                    else:
+                        target_arns = get_target_arns_for_ps(ctx, acct_asst['PermissionSetArn'])
+
+                        assignments.setdefault(acct_asst['AccountId'], []).append(
+                            (ps_name, principal_name, sorted(target_arns)))
 
             for k, v in sorted(assignments.items()):
 
@@ -511,9 +562,19 @@ def run():
                         (k, get_account_name(ctx, k)))
 
                 # Show all accesses in the account.
-                for asst in sorted(v, key=lambda x: (x[0].lower(),x[1].lower())):
-                    (ps_name, principal_name) = asst
-                    print('  * %s (%s)' %  (ps_name, principal_name))
+                if options.show_target_arns == False:
+                    for asst in sorted(v, key=lambda x: (x[0].lower(),x[1].lower())):
+                        (ps_name, principal_name) = asst
+                        print('  * %s (%s)' %  (ps_name, principal_name))
+                else:
+                    for asst in sorted(v, key=lambda x: (x[0].lower(),x[1].lower())):
+                        (ps_name, principal_name, target_arns) = asst
+
+                        if target_arns == []:
+                            print('  * %s (%s)' % (ps_name, principal_name))
+                        else:
+                            for arn in target_arns:
+                                print('  * %s (%s) - %s' % (ps_name, principal_name, arn))
 
 
         # --------------------------------------------------------------------------
@@ -542,6 +603,14 @@ def run():
             for ps_name, ps_arn in sorted(ps_list, key=lambda x: x[0].lower()):
 
                 print('Listing account assignments for PS "%s"...' % ps_name)
+
+                # Optionally show assume-role targets.
+                if options.show_target_arns == True:
+                    target_arns = get_target_arns_for_ps(ctx, ps_arn)
+                    if target_arns != []:
+                        print('- Assume-role targets for this PS:')
+                        for arn in sorted(target_arns):
+                                print('  * %s' % arn)
 
                 for acct_id in get_accounts_for_provisioned_permission_set(ctx, ps_arn):
 
@@ -585,6 +654,14 @@ def run():
                 print('PS: \"%s\"  Description: \"%s\" (%s)' %
                         (ps_name, ps_desc, ps_dura))
 
+                # Optionally show assume-role targets.
+                if options.show_target_arns == True:
+                    target_arns = get_target_arns_for_ps(ctx, ps_arn)
+                    if target_arns != []:
+                        print('- Assume-role targets for this PS:')
+                        for arn in sorted(target_arns):
+                                print('  * %s' % arn)
+
 
         # --------------------------------------------------------------------------
         # This is our BASIC view BY ACCOUNT.
@@ -622,6 +699,14 @@ def run():
                 print('PS: \"%s\"  Description: \"%s\" (%s)' %
                         (ps_name, ps_desc, ps_dura))
 
+                # Optionally show assume-role targets.
+                if options.show_target_arns == True:
+                    target_arns = get_target_arns_for_ps(ctx, ps_arn)
+                    if target_arns != []:
+                        print('- Assume-role targets for this PS:')
+                        for arn in sorted(target_arns):
+                                print('  * %s' % arn)
+
 
         # --------------------------------------------------------------------------
         # This is our FULL view BY ACCOUNT.
@@ -658,6 +743,14 @@ def run():
 
                 print('PS: \"%s\"  Description: \"%s\" (%s)' %
                         (ps_name, ps_desc, ps_dura))
+
+                # Optionally show assume-role targets.
+                if options.show_target_arns == True:
+                    target_arns = get_target_arns_for_ps(ctx, ps_arn)
+                    if target_arns != []:
+                        print('- Assume-role targets for this PS:')
+                        for arn in sorted(target_arns):
+                                print('  * %s' % arn)
 
                 list_assigned_principals_for_ps_in_account(ctx, 1, options.acct_id, ps_arn)
 
@@ -710,6 +803,14 @@ def run():
                     print('PS: \"%s\"  Description: \"%s\" (%s)' %
                             (ps_name, ps_desc, ps_dura))
 
+                    # Optionally show assume-role targets.
+                    if options.show_target_arns == True:
+                        target_arns = get_target_arns_for_ps(ctx, ps_arn)
+                        if target_arns != []:
+                            print('- Assume-role targets for this PS:')
+                            for arn in sorted(target_arns):
+                                    print('  * %s' % arn)
+
                     list_assigned_principals_for_ps_in_account(ctx, 1, acct_id, ps_arn)
 
 
@@ -746,6 +847,7 @@ def run():
 
             print('Access NOT verified.')
             exit(1)
+
 
 
 # --------------------------------------------------------------------------------------------------

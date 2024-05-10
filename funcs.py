@@ -189,6 +189,7 @@ class AWSContextManager:
 # Unit tests...
 # --------------------------------------------------------------------------------------------------
 def run():
+
     cmds_usage = '''\nAvailable commands:
     test-funcs
     lookup-user-name
