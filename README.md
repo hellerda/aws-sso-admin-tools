@@ -251,3 +251,17 @@ python manage-account-assignments.py list-all-permission-set-assignments-in-ou -
 
 python manage-account-assignments.py verify-access-for-user --user-name "ima.user@my.org --ps-name "App1_Deployer" --acct-id 123456789012
 ```
+
+## Application management operations
+
+```
+python manage-apps.py list-ttis
+python manage-apps.py describe-tti --tti-name "My-TrustedTokenIssuer"
+
+python manage-apps.py list-applications
+python manage-apps.py describe-application --app-name "My-Custom-App"
+python manage-apps.py list-application-assignments --app-name "My-Custom-App"
+python manage-apps.py list-application-grants --app-name "My-Custom-App"
+python manage-apps.py list-application-access-scopes --app-name "My-Custom-App"
+python manage-apps.py list-application-auth-methods --app-name "My-Custom-App"
+```

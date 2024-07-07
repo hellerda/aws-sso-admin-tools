@@ -55,6 +55,40 @@ def get_permission_set_arn_by_name(ctx, ps_name):
     return None
 
 
+def get_application_arn_by_name(ctx, app_name):
+
+    sso_admin_client = ctx.session.client('sso-admin')
+
+    paginator = sso_admin_client.get_paginator('list_applications')
+
+    for page in paginator.paginate(
+            InstanceArn = ctx.instance_arn
+        ):
+        for item in page['Applications']:
+
+            if (item['Name'] == app_name):
+                return (item['ApplicationArn'])
+
+    return None
+
+
+def get_tti_arn_by_name(ctx, tti_name):
+
+    sso_admin_client = ctx.session.client('sso-admin')
+
+    paginator = sso_admin_client.get_paginator('list_trusted_token_issuers')
+
+    for page in paginator.paginate(
+            InstanceArn = ctx.instance_arn
+        ):
+        for item in page['TrustedTokenIssuers']:
+
+            if (item['Name'] == tti_name):
+                return (item['TrustedTokenIssuerArn'])
+
+    return None
+
+
 def get_group_id_by_name(ctx, group_name):
 
     try:
@@ -105,6 +139,34 @@ def get_permission_set_name_by_arn(ctx, ps_arn):
             PermissionSetArn = ps_arn
         )
         return(ps['PermissionSet']['Name'])
+
+    except:
+        return None
+
+
+def get_application_name_by_arn(ctx, app_arn):
+
+    try:
+        sso_admin_client = ctx.session.client('sso-admin')
+
+        app = sso_admin_client.describe_application (
+            ApplicationArn = app_arn
+        )
+        return(app['Name'])
+
+    except:
+        return None
+
+
+def get_tti_name_by_arn(ctx, tti_arn):
+
+    try:
+        sso_admin_client = ctx.session.client('sso-admin')
+
+        tti = sso_admin_client.describe_trusted_token_issuer (
+            TrustedTokenIssuerArn = tti_arn
+        )
+        return(tti['Name'])
 
     except:
         return None
@@ -195,9 +257,11 @@ def run():
     lookup-user-name
     lookup-group-name
     lookup-ps-name
+    lookup-app-name
     lookup-user-id
     lookup-group-id
     lookup-ps-arn
+    lookup-app-arn
     '''.rstrip()
 
     usage = 'usage: %prog command [options]\n   ex: %prog lookup-ps-arn --ps_name MyPermissionSet\n'
@@ -214,12 +278,20 @@ def run():
                       help='Group ID')
     parser.add_option('--ps-arn', dest='ps_arn', default=None,
                       help='Permission Set Arn')
+    parser.add_option('--app-arn', dest='app_arn', default=None,
+                      help='Trusted token issuer Arn')
+    parser.add_option('--tti-arn', dest='tti_arn', default=None,
+                      help='Application Arn')
     parser.add_option('--user-name', dest='user_name', default=None,
                       help='User name')
     parser.add_option('--group-name', dest='group_name', default=None,
                       help='Group name')
     parser.add_option('--ps-name', dest='ps_name', default=None,
                       help='Permission Set name')
+    parser.add_option('--app-name', dest='app_name', default=None,
+                      help='Application name')
+    parser.add_option('--tti-name', dest='tti_name', default=None,
+                      help='Trusted token issuer name')
 
     (options, args) = parser.parse_args()
 
@@ -238,6 +310,16 @@ def run():
             print('No permission set Arn specified; use --ps-arn.')
             exit(1)
 
+    def need_app_arn():
+        if options.app_arn == None:
+            print('No appliction Arn specified; use --app-arn.')
+            exit(1)
+
+    def need_tti_arn():
+        if options.tti_arn == None:
+            print('No TTI Arn specified; use --tti-arn.')
+            exit(1)
+
     def need_user_name():
         if options.user_name == None:
             print('No user specified; use --user-name.')
@@ -253,12 +335,24 @@ def run():
             print('No permission set specified; use --ps-name.')
             exit(1)
 
+    def need_app_name():
+        if options.app_name == None:
+            print('No appliction specified; use --app-name.')
+            exit(1)
+
+    def need_tti_name():
+        if options.tti_name == None:
+            print('No TTI specified; use --tti-name.')
+            exit(1)
+
     operation = None
 
     if len(args) > 0:
         op = args[0].lower()
         if op == 'test-funcs':
             need_ps_name()
+            need_app_name()
+            need_tti_name()
             need_user_name()
             need_group_name()
             operation = op
@@ -272,6 +366,12 @@ def run():
         elif op == 'lookup-ps-name':
             need_ps_arn()
             operation = op
+        elif op == 'lookup-app-name':
+            need_app_arn()
+            operation = op
+        elif op == 'lookup-tti-name':
+            need_tti_arn()
+            operation = op
         elif op == 'lookup-user-id':
             need_user_name()
             operation = op
@@ -280,6 +380,12 @@ def run():
             operation = op
         elif op == 'lookup-ps-arn':
             need_ps_name()
+            operation = op
+        elif op == 'lookup-app-arn':
+            need_app_name()
+            operation = op
+        elif op == 'lookup-tti-arn':
+            need_tti_name()
             operation = op
 
         else:
@@ -300,6 +406,10 @@ def run():
             # Simple test-assertions
             print('\nLooking up Permission Set \"%s\": %s' % (options.ps_name, "Success." if (options.ps_name ==
                   get_permission_set_name_by_arn(ctx, get_permission_set_arn_by_name(ctx, options.ps_name))) else "Failed."))
+            print('Looking up Application \"%s\": %s' % (options.app_name, "Success." if (options.app_name ==
+                  get_application_name_by_arn(ctx, get_application_arn_by_name(ctx, options.app_name))) else "Failed."))
+            print('Looking up TTI \"%s\": %s' % (options.tti_name, "Success." if (options.tti_name ==
+                  get_tti_name_by_arn(ctx, get_tti_arn_by_name(ctx, options.tti_name))) else "Failed."))
             print('Looking up Group \"%s\": %s' % (options.group_name, "Success." if (options.group_name ==
                   get_group_name_by_id(ctx, get_group_id_by_name(ctx, options.group_name))) else "Failed."))
             print('Looking up User \"%s\": %s' % (options.user_name, "Success." if (options.user_name ==
@@ -336,6 +446,24 @@ def run():
                 print(ps_name)
 
 
+        elif operation == 'lookup-app-name':
+
+            app_name = get_application_name_by_arn(ctx, options.app_arn)
+            if app_name == None:
+                print('Application \"%s\" not found.' % options.app_arn)
+            else:
+                print(app_name)
+
+
+        elif operation == 'lookup-tti-name':
+
+            tti_name = get_tti_name_by_arn(ctx, options.tti_arn)
+            if tti_name == None:
+                print('TTI \"%s\" not found.' % options.tti_arn)
+            else:
+                print(tti_name)
+
+
         elif operation == 'lookup-user-id':
 
             user_id = get_user_id_by_name(ctx, options.user_name)
@@ -361,6 +489,24 @@ def run():
                 print('Permission set name \"%s\" not found.' % options.ps_name)
             else:
                 print(ps_arn)
+
+
+        elif operation == 'lookup-app-arn':
+
+            app_arn = get_application_arn_by_name(ctx, options.app_name)
+            if app_arn == None:
+                print('Application name \"%s\" not found.' % options.app_name)
+            else:
+                print(app_arn)
+
+
+        elif operation == 'lookup-tti-arn':
+
+            tti_arn = get_tti_arn_by_name(ctx, options.tti_name)
+            if tti_arn == None:
+                print('TTI name \"%s\" not found.' % options.tti_name)
+            else:
+                print(tti_arn)
 
 
 # --------------------------------------------------------------------------------------------------
