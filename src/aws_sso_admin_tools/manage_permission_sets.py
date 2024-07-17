@@ -12,7 +12,12 @@ import logging
 import os
 import sys
 
-from funcs import *
+# from funcs import *
+
+if __package__ is None or __package__ == '' :
+    from funcs import *
+else:
+    from .funcs import *
 
 from optparse import OptionParser
 
@@ -169,23 +174,26 @@ def read_cm_policies_from_cmdline():
 def run():
 
     cmds_usage = '''\nAvailable commands:
-    create
-    update
-    delete
-    describe
-    tag
-    untag
-    attach-managed-policies
-    detach-managed-policies
-    list-managed-policies
-    put-inline-policy
-    delete-inline-policy
-    get-inline-policy
-    list-tags
-    provision
+    create-ps
+    update-ps
+    delete-ps
+    describe-ps
+    tag-ps
+    untag-ps
+    attach-ps-managed-policies
+    detach-ps-managed-policies
+    list-ps-managed-policies
+    attach-ps-customer-managed-policies
+    detach-ps-customer-managed-policies
+    list-ps-customer-managed-policies
+    put-ps-inline-policy
+    delete-ps-inline-policy
+    get-ps-inline-policy
+    list-ps-tags
+    provision-ps
     '''.rstrip()
 
-    usage = 'usage: %prog command [options]\n   ex: %prog describe --ps_name MyPermissionSet\n'
+    usage = 'usage: %prog command [options]\n   ex: %prog describe-ps --ps_name MyPermissionSet\n'
     parser = OptionParser(usage + cmds_usage)
     global options
 
@@ -226,56 +234,56 @@ def run():
 
     if len(args) > 0:
         op = args[0].lower()
-        if op == 'create':
+        if op == 'create-ps':
             need_ps_name()
             operation = op
-        elif op == 'update':
+        elif op == 'update-ps':
             need_ps_name()
             operation = op
-        elif op == 'delete':
+        elif op == 'delete-ps':
             need_ps_name()
             operation = op
-        elif op == 'describe':
+        elif op == 'describe-ps':
             need_ps_name()
             operation = op
-        elif op == 'tag':
+        elif op == 'tag-ps':
             need_ps_name()
             operation = op
-        elif op == 'untag':
+        elif op == 'untag-ps':
             need_ps_name()
             need_tag_keys()
             operation = op
-        elif op == 'attach-managed-policies':
+        elif op == 'attach-ps-managed-policies':
             need_ps_name()
             operation = op
-        elif op == 'detach-managed-policies':
+        elif op == 'detach-ps-managed-policies':
             need_ps_name()
             operation = op
-        elif op == 'list-managed-policies':
+        elif op == 'list-ps-managed-policies':
             need_ps_name()
             operation = op
-        elif op == 'attach-customer-managed-policies':
+        elif op == 'attach-ps-customer-managed-policies':
             need_ps_name()
             operation = op
-        elif op == 'detach-customer-managed-policies':
+        elif op == 'detach-ps-customer-managed-policies':
             need_ps_name()
             operation = op
-        elif op == 'list-customer-managed-policies':
+        elif op == 'list-ps-customer-managed-policies':
             need_ps_name()
             operation = op
-        elif op == 'put-inline-policy':
+        elif op == 'put-ps-inline-policy':
             need_ps_name()
             operation = op
-        elif op == 'delete-inline-policy':
+        elif op == 'delete-ps-inline-policy':
             need_ps_name()
             operation = op
-        elif op == 'get-inline-policy':
+        elif op == 'get-ps-inline-policy':
             need_ps_name()
             operation = op
-        elif op == 'list-tags':
+        elif op == 'list-ps-tags':
             need_ps_name()
             operation = op
-        elif op == 'provision':
+        elif op == 'provision-ps':
             need_ps_name()
             operation = op
         else:
@@ -353,7 +361,7 @@ def run():
 
         instance_arn = ctx.instance_arn
 
-        if operation == 'create':
+        if operation == 'create-ps':
 
             if options.tags != None:
                 ps_tags = read_tags_from_cmdline()
@@ -404,7 +412,7 @@ def run():
                 exit(1)
 
 
-        elif operation == 'update':
+        elif operation == 'update-ps':
 
             ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
             if ps_arn == None:
@@ -440,7 +448,7 @@ def run():
                 exit(1)
 
 
-        elif operation == 'delete':
+        elif operation == 'delete-ps':
 
             ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
             if ps_arn == None:
@@ -458,7 +466,7 @@ def run():
                 exit(1)
 
 
-        elif operation == 'describe':
+        elif operation == 'describe-ps':
 
             ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
             if ps_arn == None:
@@ -478,7 +486,7 @@ def run():
                 exit(1)
 
 
-        elif operation == 'tag':
+        elif operation == 'tag-ps':
 
             if options.tags != None:
                 ps_tags = read_tags_from_cmdline()
@@ -510,7 +518,7 @@ def run():
                 exit(1)
 
 
-        elif operation == 'untag':
+        elif operation == 'untag-ps':
 
             if (options.tag_keys == ''):
                 print('Error: empty value passed to --tag-keys.')
@@ -535,7 +543,7 @@ def run():
                 exit(1)
 
 
-        elif operation == 'attach-managed-policies':
+        elif operation == 'attach-ps-managed-policies':
 
             if options.policy_arns != None:
                 policy_arns = read_policy_arns_from_cmdline()
@@ -566,7 +574,7 @@ def run():
                     print("Policy arn \"%s\" cannot be attached: %s" % (policy_arn, str(e)))
 
 
-        elif operation == 'detach-managed-policies':
+        elif operation == 'detach-ps-managed-policies':
 
             if options.policy_arns != None:
                 policy_arns = read_policy_arns_from_cmdline()
@@ -597,7 +605,7 @@ def run():
                     print("Policy arn \"%s\" cannot be detached: %s" % (policy_arn, str(e)))
 
 
-        elif operation == 'list-managed-policies':
+        elif operation == 'list-ps-managed-policies':
 
             ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
             if ps_arn == None:
@@ -618,7 +626,7 @@ def run():
                 exit(1)
 
 
-        elif operation == 'attach-customer-managed-policies':
+        elif operation == 'attach-ps-customer-managed-policies':
 
             if options.cm_policies != None:
                 cm_policies = read_cm_policies_from_cmdline()
@@ -650,7 +658,7 @@ def run():
                     print("Managed policy \"%s\" cannot be attached: %s" % (cm_policy['Name'], str(e)))
 
 
-        elif operation == 'detach-customer-managed-policies':
+        elif operation == 'detach-ps-customer-managed-policies':
 
             if options.cm_policies != None:
                 cm_policies = read_cm_policies_from_cmdline()
@@ -682,7 +690,7 @@ def run():
                     print("Managed policy \"%s\" cannot be detached: %s" % (cm_policy['Name'], str(e)))
 
 
-        elif operation == 'list-customer-managed-policies':
+        elif operation == 'list-ps-customer-managed-policies':
 
             ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
             if ps_arn == None:
@@ -703,7 +711,7 @@ def run():
                 exit(1)
 
 
-        elif operation == 'put-inline-policy':
+        elif operation == 'put-ps-inline-policy':
 
             ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
             if ps_arn == None:
@@ -731,7 +739,7 @@ def run():
                 exit(1)
 
 
-        elif operation == 'delete-inline-policy':
+        elif operation == 'delete-ps-inline-policy':
 
             ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
             if ps_arn == None:
@@ -749,7 +757,7 @@ def run():
                 exit(1)
 
 
-        elif operation == 'get-inline-policy':
+        elif operation == 'get-ps-inline-policy':
 
             ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
             if ps_arn == None:
@@ -769,7 +777,7 @@ def run():
                 exit(1)
 
 
-        elif operation == 'list-tags':
+        elif operation == 'list-ps-tags':
 
             ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
             if ps_arn == None:
@@ -789,7 +797,7 @@ def run():
                 exit(1)
 
 
-        elif operation == 'provision':
+        elif operation == 'provision-ps':
 
             ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
             if ps_arn == None:
@@ -816,6 +824,7 @@ def run():
                 )
                 response.pop('ResponseMetadata')
                 print(json.dumps(response, indent=4, sort_keys=False, default=str))
+
 
 
 # --------------------------------------------------------------------------------------------------

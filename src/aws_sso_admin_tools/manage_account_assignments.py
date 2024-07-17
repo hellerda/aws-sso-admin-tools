@@ -12,7 +12,12 @@ import logging
 import os
 import sys
 
-from funcs import *
+# from funcs import *
+
+if __package__ is None or __package__ == '' :
+    from funcs import *
+else:
+    from .funcs import *
 
 from optparse import OptionParser
 

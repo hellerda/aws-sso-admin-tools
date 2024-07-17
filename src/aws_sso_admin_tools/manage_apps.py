@@ -12,7 +12,12 @@ import logging
 import os
 import sys
 
-from funcs import *
+# from funcs import *
+
+if __package__ is None or __package__ == '' :
+    from funcs import *
+else:
+    from .funcs import *
 
 from optparse import OptionParser
 
@@ -59,7 +64,7 @@ def run():
     list-application-grants
     '''.rstrip()
 
-    usage = 'usage: %prog command [options]\n   ex: %prog list-accounts-for-provisioned-permission-set --ps-name MyPermissionSet\n'
+    usage = 'usage: %prog command [options]\n   ex: %prog describe-application --app-name My-Custom-App\n'
     parser = OptionParser(usage + cmds_usage)
     global options
 
@@ -224,7 +229,6 @@ def run():
             ):
                 for item in page['Grants']:
                     print(json.dumps(item, indent=4, sort_keys=False, default=str))
-                    # print(json.dumps(item['AuthenticationMethods'], indent=4, sort_keys=False, default=str))
 
 
         elif operation == 'describe-tti':
