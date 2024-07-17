@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aws_sso_admin_tools"
+version = "0.1.0"
+authors = [{name = "Dave Heller", email = "techrules@pm.me"}]
+description = "Tools for managing AWS Identity Center"
+dependencies = ["boto3"]
+requires-python = ">=3.7"
+keywords = ["aws", "sso"]
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+
+[project.scripts]
+aws-sso-admin = "aws_sso_admin_tools.aws_sso_admin:main"
+# aws-sso-funcs = "aws_sso_admin_tools.funcs:main"
+# aws-sso-manage-acct-assignments = "aws_sso_admin_tools.manage_account_assignments:main"
+# aws-sso-manage-apps = "aws_sso_admin_tools.manage_apps:main"
+# aws-sso-manage-permission-sets = "aws_sso_admin_tools.manage_permission_sets:main"
+# aws-sso-manage-users-groups = "aws_sso_admin_tools.manage_users_groups:main"
+
+[project.urls]
+"Homepage" = "https://github.com/hellerda/aws-sso-admin-tools/"
+"Bug Tracker" = "https://github.com/hellerda/aws-sso-admin-tools/issues"
