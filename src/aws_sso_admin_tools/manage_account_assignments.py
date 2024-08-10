@@ -237,9 +237,18 @@ def run():
                       help='Group name')
     parser.add_option('--ou-name', dest='ou_name', default=None,
                       help='OU name')
-    parser.add_option('--show-acct-names', dest='show_acct_names', default=False,
+    parser.add_option('--show-acct-names', dest='show_acct_names', default=True,
                       action='store_true',
                       help='Show account names where applicable')
+    parser.add_option('--no-show-acct-names', dest='show_acct_names', default=True,
+                      action='store_false',
+                      help='Suppress showing account names where applicable')
+    parser.add_option('--show-principal-names', dest='show_principal_names', default=True,
+                      action='store_true',
+                      help='Show associated user or group names where applicable')
+    parser.add_option('--no-show-principal-names', dest='show_principal_names', default=True,
+                      action='store_false',
+                      help='Suppress showing user or group names where applicable')
     parser.add_option('--show-target-arns', dest='show_target_arns', default=False,
                       action='store_true',
                       help='Show assume-role target Arns for a PS')
@@ -547,39 +556,38 @@ def run():
                     elif (acct_asst['PrincipalType'] == 'GROUP'):
                         principal_name = get_group_name_by_id(ctx, acct_asst['PrincipalId'])
 
-                    # Build a Dict where each value is list of tuples.
-                    if options.show_target_arns == False:
-                        assignments.setdefault(acct_asst['AccountId'], []).append(
-                            (ps_name, principal_name))
-                    else:
+                    # Note the list can be empty if the option is off or this PS has no target arns.
+                    if options.show_target_arns == True:
                         target_arns = get_target_arns_for_ps(ctx, acct_asst['PermissionSetArn'])
+                    else:
+                        target_arns = []
 
-                        assignments.setdefault(acct_asst['AccountId'], []).append(
-                            (ps_name, principal_name, sorted(target_arns)))
+                    # Build a Dict where each value is list of tuples.
+                    assignments.setdefault(acct_asst['AccountId'], []).append(
+                        (ps_name, principal_name, sorted(target_arns)))
 
+            # Print the dict we just built...
             for k, v in sorted(assignments.items()):
 
                 # For each account...
                 if options.show_acct_names == False:
-                    print('- Assigned PS in account \"%s\"...' % k)
+                    print('- Assigned access in account \"%s\"...' % k)
                 else:
-                    print('- Assigned PS in account "%s" --- ("%s")...' %
+                    print('- Assigned access in account "%s" --- ("%s")...' %
                         (k, get_account_name(ctx, k)))
 
                 # Show all accesses in the account.
-                if options.show_target_arns == False:
-                    for asst in sorted(v, key=lambda x: (x[0].lower(),x[1].lower())):
-                        (ps_name, principal_name) = asst
-                        print('  * %s (%s)' %  (ps_name, principal_name))
-                else:
-                    for asst in sorted(v, key=lambda x: (x[0].lower(),x[1].lower())):
-                        (ps_name, principal_name, target_arns) = asst
+                for asst in sorted(v, key=lambda x: (x[0].lower(),x[1].lower())):
+                    (ps_name, principal_name, target_arns) = asst
 
-                        if target_arns == []:
-                            print('  * %s (%s)' % (ps_name, principal_name))
-                        else:
-                            for arn in target_arns:
-                                print('  * %s (%s) - %s' % (ps_name, principal_name, arn))
+                    if options.show_principal_names == True:
+                        print('  * %s (%s)' % (ps_name, principal_name))
+                    else:
+                        print('  * %s' % ps_name)
+
+                    if not target_arns == []:
+                        for arn in target_arns:
+                            print('    - %s' % (arn))
 
 
         # --------------------------------------------------------------------------
@@ -749,6 +757,8 @@ def run():
                 print('PS: \"%s\"  Description: \"%s\" (%s)' %
                         (ps_name, ps_desc, ps_dura))
 
+                list_assigned_principals_for_ps_in_account(ctx, 1, options.acct_id, ps_arn)
+
                 # Optionally show assume-role targets.
                 if options.show_target_arns == True:
                     target_arns = get_target_arns_for_ps(ctx, ps_arn)
@@ -756,8 +766,6 @@ def run():
                         print('- Assume-role targets for this PS:')
                         for arn in sorted(target_arns):
                                 print('  * %s' % arn)
-
-                list_assigned_principals_for_ps_in_account(ctx, 1, options.acct_id, ps_arn)
 
 
         # --------------------------------------------------------------------------
