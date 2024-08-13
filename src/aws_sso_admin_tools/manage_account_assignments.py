@@ -209,19 +209,19 @@ def run():
     cmds_usage = '''\nAvailable commands:
     create-account-assignment
     delete-account-assignment
-    provision-permission-set
+    provision-ps
     list-assigned-principals-for-ps-in-account
-    list-accounts-for-provisioned-permission-set
-    list-all-acct-assignments-for-provisioned-permission-set
+    list-accounts-for-provisioned-ps
+    list-all-acct-assignments-for-provisioned-ps
     list-all-acct-assignments-for-principal
     list-all-acct-assignments-for-ps-in-org
-    list-all-permission-sets-in-org
-    list-all-permission-set-assignments-in-account
-    list-all-permission-set-assignments-in-ou
+    list-all-ps-in-org
+    list-all-ps-assignments-in-account
+    list-all-ps-assignments-in-ou
     verify-access-for-user
     '''.rstrip()
 
-    usage = 'usage: %prog command [options]\n   ex: %prog list-accounts-for-provisioned-permission-set --ps-name MyPermissionSet\n'
+    usage = 'usage: %prog command [options]\n   ex: %prog list-accounts-for-provisioned-ps --ps-name MyPermissionSet\n'
     parser = OptionParser(usage + cmds_usage)
     global options
 
@@ -292,17 +292,17 @@ def run():
             need_ps_name()
             need_user_or_group_name()
             operation = op
-        elif op == 'provision-permission-set':
+        elif op == 'provision-ps':
             need_ps_name()
             operation = op
         elif op == 'list-assigned-principals-for-ps-in-account':
             need_acct_id()
             need_ps_name()
             operation = op
-        elif op == 'list-accounts-for-provisioned-permission-set':
+        elif op == 'list-accounts-for-provisioned-ps':
             need_ps_name()
             operation = op
-        elif op == 'list-all-acct-assignments-for-provisioned-permission-set':
+        elif op == 'list-all-acct-assignments-for-provisioned-ps':
             need_ps_name()
             operation = op
         elif op == 'list-all-acct-assignments-for-principal':
@@ -310,15 +310,15 @@ def run():
             operation = op
         elif op == 'list-all-acct-assignments-for-ps-in-org':
             operation = op
-        elif op == 'list-all-permission-sets-in-org':
+        elif op == 'list-all-ps-in-org':
             operation = op
-        elif op == 'list-permission-sets-provisioned-to-account':
+        elif op == 'list-ps-provisioned-to-account':
             need_acct_id()
             operation = op
-        elif op == 'list-all-permission-set-assignments-in-account':
+        elif op == 'list-all-ps-assignments-in-account':
             need_acct_id()
             operation = op
-        elif op == 'list-all-permission-set-assignments-in-ou':
+        elif op == 'list-all-ps-assignments-in-ou':
             need_ou_name()
             operation = op
         elif op == 'verify-access-for-user':
@@ -424,7 +424,7 @@ def run():
             print(json.dumps(response, indent=4, sort_keys=False, default=str))
 
 
-        elif operation == 'provision-permission-set':
+        elif operation == 'provision-ps':
 
             ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
             if ps_arn == None:
@@ -472,7 +472,7 @@ def run():
         # --------------------------------------------------------------------------
         # This is our BASIC view BY PERMISSION SET.
         # --------------------------------------------------------------------------
-        elif operation == 'list-accounts-for-provisioned-permission-set':
+        elif operation == 'list-accounts-for-provisioned-ps':
 
             ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
             if ps_arn == None:
@@ -492,7 +492,7 @@ def run():
         # --------------------------------------------------------------------------
         # This is our FULL view BY PERMISSION SET.
         # --------------------------------------------------------------------------
-        elif operation == 'list-all-acct-assignments-for-provisioned-permission-set':
+        elif operation == 'list-all-acct-assignments-for-provisioned-ps':
 
             ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
             if ps_arn == None:
@@ -639,7 +639,7 @@ def run():
         # --------------------------------------------------------------------------
         # This is like above but just lists PS without the acct assignment lookup.
         # --------------------------------------------------------------------------
-        elif operation == 'list-all-permission-sets-in-org':
+        elif operation == 'list-all-ps-in-org':
 
             print('Listing all Permission Sets in the Organization...')
 
@@ -679,7 +679,7 @@ def run():
         # --------------------------------------------------------------------------
         # This is our BASIC view BY ACCOUNT.
         # --------------------------------------------------------------------------
-        elif operation == 'list-permission-sets-provisioned-to-account':
+        elif operation == 'list-ps-provisioned-to-account':
 
             ps_list = []
 
@@ -724,7 +724,7 @@ def run():
         # --------------------------------------------------------------------------
         # This is our FULL view BY ACCOUNT.
         # --------------------------------------------------------------------------
-        elif operation == 'list-all-permission-set-assignments-in-account':
+        elif operation == 'list-all-ps-assignments-in-account':
 
             ps_list = []
 
@@ -771,7 +771,7 @@ def run():
         # --------------------------------------------------------------------------
         # This is a view BY OU, but really a view BY ACCOUNT.
         # --------------------------------------------------------------------------
-        elif operation == 'list-all-permission-set-assignments-in-ou':
+        elif operation == 'list-all-ps-assignments-in-ou':
 
             ou_id = get_ou_id_by_name(ctx, options.ou_name)
 
