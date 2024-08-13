@@ -119,25 +119,25 @@ aws-sso-admin provision-ps --ps-name "App1_Deployer" --acct-id 123456789012
 aws-sso-admin create-account-assignment --ps-name "App1_Deployer" --group-name "App1_Deployers" --acct-id 123456789012
 aws-sso-admin delete-account-assignment --ps-name "App1_Deployer" --group-name "App1_Deployers" --acct-id 123456789012
 
-aws-sso-admin provision-permission-set --ps-name "App1_Deployer"
-aws-sso-admin provision-permission-set --ps-name "App1_Deployer" --acct-id 123456789012
+aws-sso-admin provision-ps --ps-name "App1_Deployer"
+aws-sso-admin provision-ps --ps-name "App1_Deployer" --acct-id 123456789012
 
 aws-sso-admin list-assigned-principals-for-ps-in-account --ps-name "App1_Deployer" --acct-id 123456789012
 
-aws-sso-admin list-accounts-for-provisioned-permission-set --ps-name "App1_Deployer"
-aws-sso-admin list-all-acct-assignments-for-provisioned-permission-set --ps-name "App1_Deployer"
+aws-sso-admin list-accounts-for-provisioned-ps --ps-name "App1_Deployer"
+aws-sso-admin list-all-acct-assignments-for-provisioned-ps --ps-name "App1_Deployer"
 
-aws-sso-admin list-all-permission-sets-in-org
+aws-sso-admin list-all-ps-in-org
 aws-sso-admin list-all-acct-assignments-for-ps-in-org
 
 aws-sso-admin list-all-acct-assignments-for-principal --user-name "ima.user@my.org"
 aws-sso-admin list-all-acct-assignments-for-principal --group-name "App1_Deployers"
 
-aws-sso-admin list-permission-sets-provisioned-to-account --acct-id 123456789012
-aws-sso-admin list-all-permission-set-assignments-in-account --acct-id 123456789012
+aws-sso-admin list-ps-provisioned-to-account --acct-id 123456789012
+aws-sso-admin list-all-ps-assignments-in-account --acct-id 123456789012
 
-aws-sso-admin list-all-permission-set-assignments-in-ou --ou-name "IT"
-aws-sso-admin list-all-permission-set-assignments-in-ou --ou-name "Sandbox"
+aws-sso-admin list-all-ps-assignments-in-ou --ou-name "IT"
+aws-sso-admin list-all-ps-assignments-in-ou --ou-name "Sandbox"
 
 aws-sso-admin verify-access-for-user --user-name "ima.user@my.org --ps-name "App1_Deployer" --acct-id 123456789012
 ```

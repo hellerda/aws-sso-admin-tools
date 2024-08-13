@@ -87,15 +87,15 @@ def run():
   Account Assignment operations:
     create-account-assignment
     delete-account-assignment
-    provision-permission-set
+    provision-ps
     list-assigned-principals-for-ps-in-account
-    list-accounts-for-provisioned-permission-set
-    list-all-acct-assignments-for-provisioned-permission-set
+    list-accounts-for-provisioned-ps
+    list-all-acct-assignments-for-provisioned-ps
     list-all-acct-assignments-for-principal
     list-all-acct-assignments-for-ps-in-org
-    list-all-permission-sets-in-org
-    list-all-permission-set-assignments-in-account
-    list-all-permission-set-assignments-in-ou
+    list-all-ps-in-org
+    list-all-ps-assignments-in-account
+    list-all-ps-assignments-in-ou
     verify-access-for-user
 
   Application management operations:
@@ -111,7 +111,7 @@ def run():
     '''
 
     usage = f'usage: {prog} command [options]\n' + \
-            f'   ex: {prog} list-accounts-for-provisioned-permission-set --ps-name MyPermissionSet\n' + \
+            f'   ex: {prog} list-accounts-for-provisioned-ps --ps-name MyPermissionSet\n' + \
             f'   For command list use "{prog} help"\n'
 
     op = None
@@ -221,25 +221,25 @@ def run():
             manage_account_assignments.run()
         elif op == 'delete-account-assignment':
             manage_account_assignments.run()
-        elif op == 'provision-permission-set':
+        elif op == 'provision-ps':
             manage_account_assignments.run()
         elif op == 'list-assigned-principals-for-ps-in-account':
             manage_account_assignments.run()
-        elif op == 'list-accounts-for-provisioned-permission-set':
+        elif op == 'list-accounts-for-provisioned-ps':
             manage_account_assignments.run()
-        elif op == 'list-all-acct-assignments-for-provisioned-permission-set':
+        elif op == 'list-all-acct-assignments-for-provisioned-ps':
             manage_account_assignments.run()
         elif op == 'list-all-acct-assignments-for-principal':
             manage_account_assignments.run()
         elif op == 'list-all-acct-assignments-for-ps-in-org':
             manage_account_assignments.run()
-        elif op == 'list-all-permission-sets-in-org':
+        elif op == 'list-all-ps-in-org':
             manage_account_assignments.run()
-        elif op == 'list-permission-sets-provisioned-to-account':
+        elif op == 'list-ps-provisioned-to-account':
             manage_account_assignments.run()
-        elif op == 'list-all-permission-set-assignments-in-account':
+        elif op == 'list-all-ps-assignments-in-account':
             manage_account_assignments.run()
-        elif op == 'list-all-permission-set-assignments-in-ou':
+        elif op == 'list-all-ps-assignments-in-ou':
             manage_account_assignments.run()
         elif op == 'verify-access-for-user':
             manage_account_assignments.run()
