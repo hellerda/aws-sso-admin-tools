@@ -29,7 +29,7 @@ def list_assigned_principals_for_ps_in_account(ctx, indent, acct_id, ps_arn):
 
     bullet = ''
     if indent == 1:
-        bullet = '- '
+        bullet = '* '
     elif indent == 2:
         bullet = '  * '
 
@@ -252,6 +252,12 @@ def run():
     parser.add_option('--show-target-arns', dest='show_target_arns', default=False,
                       action='store_true',
                       help='Show assume-role target Arns for a PS')
+    parser.add_option('--no-show-target-arns', dest='show_target_arns', default=False,
+                      action='store_false',
+                      help='Suppress showing assume-role target Arns for a PS')
+    parser.add_option('--qa', dest='quash_admin', default=False,
+                      action='store_true',
+                      help='Suppress showing entries for AdministratorAccess PS')
 
     (options, args) = parser.parse_args()
 
@@ -529,7 +535,7 @@ def run():
                     exit(1)
                 principal_id = user_id
                 principal_type = 'USER'
-                print('Listing all Account assignments for \"%s\"...' % options.user_name)
+                print('Listing all Account assignments for "%s"...' % options.user_name)
             else:
                 group_id = get_group_id_by_name(ctx, options.group_name)
                 if group_id == None:
@@ -537,7 +543,7 @@ def run():
                     exit(1)
                 principal_id = group_id
                 principal_type = 'GROUP'
-                print('Listing all Account assignments for \"%s\"...' % options.group_name)
+                print('Listing all Account assignments for "%s"...' % options.group_name)
 
             paginator = sso_admin_client.get_paginator('list_account_assignments_for_principal')
             for page in paginator.paginate(
@@ -547,41 +553,55 @@ def run():
             ):
                 for acct_asst in page['AccountAssignments']:
 
-                    ps_name = get_permission_set_name_by_arn(ctx, acct_asst['PermissionSetArn'])
-
+                    acct_id = acct_asst['AccountId']
+                    ps_arn = acct_asst['PermissionSetArn']
                     principal_name = ''
+
+                    ps_name = get_permission_set_name_by_arn(ctx, ps_arn)
+                    if (ps_name == None):
+                        raise SystemExit('PS with "%s" not found.' % ps_arn)
+
+                    if options.quash_admin == True:
+                        if (ps_name == 'AdministratorAccess'):
+                            continue
 
                     if (acct_asst['PrincipalType'] == 'USER'):
                         principal_name = get_user_name_by_id(ctx, acct_asst['PrincipalId'])
                     elif (acct_asst['PrincipalType'] == 'GROUP'):
                         principal_name = get_group_name_by_id(ctx, acct_asst['PrincipalId'])
 
+                    if (principal_name == None):
+                        raise SystemExit('Principal with id "%s" not found.' % acct_asst['PrincipalId'])
+
                     # Note the list can be empty if the option is off or this PS has no target arns.
-                    if options.show_target_arns == True:
-                        target_arns = get_target_arns_for_ps(ctx, acct_asst['PermissionSetArn'])
+                    if (options.show_target_arns == True):
+                        target_arns = sorted(get_target_arns_for_ps(ctx, ps_arn))
                     else:
                         target_arns = []
 
-                    # Build a Dict where each value is list of tuples.
-                    assignments.setdefault(acct_asst['AccountId'], []).append(
-                        (ps_name, principal_name, sorted(target_arns)))
+                    # A dict holding a dict holding a tuple of values...
+                    assignments.setdefault(acct_id, {}).setdefault(ps_name, ([], []))
+                    # Append the list of PS names...
+                    assignments[acct_id][ps_name][0].append(principal_name)
+                    # Replace the list of target_arns...
+                    assignments[acct_id][ps_name] = (assignments[acct_id][ps_name][0], target_arns)
 
             # Print the dict we just built...
             for k, v in sorted(assignments.items()):
 
                 # For each account...
                 if options.show_acct_names == False:
-                    print('- Assigned access in account \"%s\"...' % k)
+                    print('- Assigned access in account "%s"...' % k)
                 else:
                     print('- Assigned access in account "%s" --- ("%s")...' %
                         (k, get_account_name(ctx, k)))
 
                 # Show all accesses in the account.
-                for asst in sorted(v, key=lambda x: (x[0].lower(),x[1].lower())):
-                    (ps_name, principal_name, target_arns) = asst
+                for ps_name, val in sorted(v.items(), key=lambda x: x[0].lower()):
+                    (principal_list, target_arns) = val
 
                     if options.show_principal_names == True:
-                        print('  * %s (%s)' % (ps_name, principal_name))
+                        print('  * %s %s' % (ps_name, principal_list))
                     else:
                         print('  * %s' % ps_name)
 
@@ -609,13 +629,19 @@ def run():
                         PermissionSetArn = ps_arn
                     )
                     ps_name = ps['PermissionSet']['Name']
+                    ps_dura = ps['PermissionSet']['SessionDuration']
+                    ps_desc = ps['PermissionSet'].pop('Description', '-')
 
-                    ps_list.append((ps_name, ps_arn))
+                    if options.quash_admin == True:
+                        if (ps_name == 'AdministratorAccess'):
+                            continue
+
+                    ps_list.append((ps_name, ps_arn, ps_desc, ps_dura))
                     print('Checking permission set "%s"...' % ps_name, ' '*30, end='\r')
 
-            for ps_name, ps_arn in sorted(ps_list, key=lambda x: x[0].lower()):
+            for ps_name, ps_arn, ps_desc, ps_dura in sorted(ps_list, key=lambda x: x[0].lower()):
 
-                print('Listing account assignments for PS "%s"...' % ps_name)
+                print('Listing assignments for PS "%s": ("%s") (%s)...' % (ps_name, ps_desc, ps_dura))
 
                 # Optionally show assume-role targets.
                 if options.show_target_arns == True:
@@ -633,7 +659,8 @@ def run():
                         print('- ACCT: %s --- ("%s")...' %
                               (acct_id, get_account_name(ctx, acct_id)))
 
-                    list_assigned_principals_for_ps_in_account(ctx, 2, acct_id, ps_arn)
+                    if options.show_principal_names == True:
+                        list_assigned_principals_for_ps_in_account(ctx, 2, acct_id, ps_arn)
 
 
         # --------------------------------------------------------------------------
@@ -757,7 +784,8 @@ def run():
                 print('PS: \"%s\"  Description: \"%s\" (%s)' %
                         (ps_name, ps_desc, ps_dura))
 
-                list_assigned_principals_for_ps_in_account(ctx, 1, options.acct_id, ps_arn)
+                if options.show_principal_names == True:
+                    list_assigned_principals_for_ps_in_account(ctx, 1, options.acct_id, ps_arn)
 
                 # Optionally show assume-role targets.
                 if options.show_target_arns == True:
