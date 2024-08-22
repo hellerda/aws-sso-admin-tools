@@ -209,20 +209,21 @@ def get_group_memberships_for_user(ctx, user_id):
     found_groups = []
 
     try:
-        paginator = identitystore_client.get_paginator('list_groups')
+        paginator = identitystore_client.get_paginator('list_group_memberships_for_member')
 
-        for page in paginator.paginate(IdentityStoreId = ctx.identitystore_id):
-            for group in page["Groups"]:
+        for page in paginator.paginate(
+            IdentityStoreId = ctx.identitystore_id,
+            MemberId={
+                'UserId': user_id
+            }
+        ):
+            for member in page["GroupMemberships"]:
 
-                paginator2 = identitystore_client.get_paginator('list_group_memberships')
-
-                for page in paginator2.paginate(
+                response = identitystore_client.describe_group (
                     IdentityStoreId = ctx.identitystore_id,
-                    GroupId = group['GroupId']
-                ):
-                    for member in page["GroupMemberships"]:
-                        if member['MemberId']['UserId'] == user_id:
-                            found_groups.append(group)
+                    GroupId = member['GroupId']
+                )
+                found_groups.append(response)
 
         return found_groups
 
