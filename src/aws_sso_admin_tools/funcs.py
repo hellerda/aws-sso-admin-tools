@@ -37,6 +37,56 @@ def get_sso_instance(ctx):
     return(instance_arn, identitystore_id)
 
 
+def get_acct_desc_by_name(ctx, acct_name):
+
+    organizations_client = ctx.session.client('organizations')
+
+    try:
+        for page in organizations_client.get_paginator('list_accounts').paginate():
+
+            for acct in page['Accounts']:
+                if acct['Name'] == acct_name:
+                    return acct
+
+        return None
+
+    except:
+        return None
+
+
+def get_acct_desc_by_id(ctx, acct_id):
+
+    organizations_client = ctx.session.client('organizations')
+
+    try:
+        acct = organizations_client.describe_account (
+            AccountId = acct_id
+        )
+
+        return acct['Account']
+
+    except:
+        return None
+
+
+def get_acct_id_by_name(ctx, acct_name):
+
+    acct = get_acct_desc_by_name(ctx, acct_name)
+    if acct != None:
+        return acct['Id']
+
+    return None
+
+
+def get_acct_name_by_id(ctx, acct_id):
+
+    acct = get_acct_desc_by_id(ctx, acct_id)
+    if acct != None:
+        return acct['Name']
+
+    return None
+
+
 def get_permission_set_arn_by_name(ctx, ps_name):
 
     sso_admin_client = ctx.session.client('sso-admin')
@@ -255,10 +305,12 @@ def run():
 
     cmds_usage = '''\nAvailable commands:
     test-funcs
+    lookup-account-name
     lookup-user-name
     lookup-group-name
     lookup-ps-name
     lookup-app-name
+    lookup-account-id
     lookup-user-id
     lookup-group-id
     lookup-ps-arn
@@ -283,6 +335,8 @@ def run():
                       help='Trusted token issuer Arn')
     parser.add_option('--tti-arn', dest='tti_arn', default=None,
                       help='Application Arn')
+    parser.add_option('--acct-name', dest='acct_name', default=None,
+                      help='Account name')
     parser.add_option('--user-name', dest='user_name', default=None,
                       help='User name')
     parser.add_option('--group-name', dest='group_name', default=None,
@@ -295,6 +349,11 @@ def run():
                       help='Trusted token issuer name')
 
     (options, args) = parser.parse_args()
+
+    def need_account_id():
+        if options.acct_id == None:
+            print('No account specified; use --acct-id.')
+            exit(1)
 
     def need_user_id():
         if options.user_id == None:
@@ -319,6 +378,11 @@ def run():
     def need_tti_arn():
         if options.tti_arn == None:
             print('No TTI Arn specified; use --tti-arn.')
+            exit(1)
+
+    def need_account_name():
+        if options.acct_name == None:
+            print('No account specified; use --acct-name.')
             exit(1)
 
     def need_user_name():
@@ -358,6 +422,9 @@ def run():
             need_group_name()
             operation = op
 
+        elif op == 'lookup-account-name':
+            need_account_id()
+            operation = op
         elif op == 'lookup-user-name':
             need_user_id()
             operation = op
@@ -372,6 +439,9 @@ def run():
             operation = op
         elif op == 'lookup-tti-name':
             need_tti_arn()
+            operation = op
+        elif op == 'lookup-account-id':
+            need_account_name()
             operation = op
         elif op == 'lookup-user-id':
             need_user_name()
@@ -420,6 +490,15 @@ def run():
 
 
         # Utility operations using the funcs...
+        elif operation == 'lookup-account-name':
+
+            acct_name = get_acct_name_by_id(ctx, options.acct_id)
+            if acct_name == None:
+                print('Account id \"%s\" not found.' % options.acct_id)
+            else:
+                print(acct_name)
+
+
         elif operation == 'lookup-user-name':
 
             user_name = get_user_name_by_id(ctx, options.user_id)
@@ -463,6 +542,15 @@ def run():
                 print('TTI \"%s\" not found.' % options.tti_arn)
             else:
                 print(tti_name)
+
+
+        elif operation == 'lookup-account-id':
+
+            acct_id = get_acct_id_by_name(ctx, options.acct_name)
+            if acct_id == None:
+                print('Account name \"%s\" not found.' % options.acct_name)
+            else:
+                print(acct_id)
 
 
         elif operation == 'lookup-user-id':

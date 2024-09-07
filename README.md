@@ -47,11 +47,13 @@ aws-sso-admin lookup-user-id --user-name "ima.user@my.org"
 aws-sso-admin lookup-group-id --group-name "App1_Deployers"
 aws-sso-admin lookup-ps-arn --ps-name "AdministratorAccess"
 aws-sso-admin lookup-app-arn --app-name "My-Custom-App"
+aws-sso-admin lookup-account-id --acct-name "my-sandbox-account"
 
 aws-sso-admin lookup-user-name --user-id "11111111-1111-1111-1111-111111111111"
 aws-sso-admin lookup-group-name --group-id "22222222-2222-2222-2222-222222222222"
 aws-sso-admin lookup-ps-name --ps-arn "arn:aws:sso:::permissionSet/ssoins-abcdef1234567890/ps-1234567890123456"
 aws-sso-admin lookup-app-name --app-arn "arn:aws:sso::123456789012:application/ssoins-abcdef1234567890/apl-a1b2c3d4e5f67890"
+aws-sso-admin lookup-account-name --acct-id 123456789012
 ```
 
 ## User and Group operations
@@ -116,6 +118,9 @@ aws-sso-admin provision-ps --ps-name "App1_Deployer" --acct-id 123456789012
 ## Account Assignment operations
 
 ```
+aws-sso-admin describe-account --acct-id 123456789012
+aws-sso-admin describe-account --acct-name "my-sandbox-account"
+
 aws-sso-admin create-account-assignment --ps-name "App1_Deployer" --group-name "App1_Deployers" --acct-id 123456789012
 aws-sso-admin delete-account-assignment --ps-name "App1_Deployer" --group-name "App1_Deployers" --acct-id 123456789012
 
