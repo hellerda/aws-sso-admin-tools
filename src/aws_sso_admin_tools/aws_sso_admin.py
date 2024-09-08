@@ -123,6 +123,8 @@ def run():
             print(usage + cmds_usage)
 
         # Simple lookup operations...
+        elif op == 'lookup-account-name':
+            funcs.run()
         elif op == 'lookup-user-name':
             funcs.run()
         elif op == 'lookup-group-name':
@@ -132,6 +134,8 @@ def run():
         elif op == 'lookup-app-name':
             funcs.run()
         elif op == 'lookup-tti-name':
+            funcs.run()
+        elif op == 'lookup-account-id':
             funcs.run()
         elif op == 'lookup-user-id':
             funcs.run()
@@ -217,6 +221,8 @@ def run():
             manage_permission_sets.run()
 
         # Account Assignment operations...
+        elif op == 'describe-account':
+            manage_account_assignments.run()
         elif op == 'create-account-assignment':
             manage_account_assignments.run()
         elif op == 'delete-account-assignment':

@@ -207,6 +207,7 @@ def get_target_arns_for_ps(ctx, ps_arn):
 def run():
 
     cmds_usage = '''\nAvailable commands:
+    describe-account
     create-account-assignment
     delete-account-assignment
     provision-ps
@@ -229,6 +230,8 @@ def run():
                       help='AWS profile to use')
     parser.add_option('--acct-id', dest='acct_id', default=None,
                       help='Account ID')
+    parser.add_option('--acct-name', dest='acct_name', default=None,
+                      help='Account name')
     parser.add_option('--ps-name', dest='ps_name', default=None,
                       help='Permission Set name')
     parser.add_option('--user-name', dest='user_name', default=None,
@@ -255,6 +258,9 @@ def run():
     parser.add_option('--no-show-target-arns', dest='show_target_arns', default=False,
                       action='store_false',
                       help='Suppress showing assume-role target Arns for a PS')
+    parser.add_option('-j', '--json-only', dest='json_only', default=False,
+                      action='store_true',
+                      help='Output JSON only, quash human-readable fluff.')
     parser.add_option('--qa', dest='quash_admin', default=False,
                       action='store_true',
                       help='Suppress showing entries for AdministratorAccess PS')
@@ -264,6 +270,11 @@ def run():
     def need_acct_id():
         if options.acct_id == None:
             print('No account specified; use --acct-id.')
+            exit(1)
+
+    def need_acct_id_or_name():
+        if (options.acct_id == None and options.acct_name) == None:
+            print('No account specified; use one of: --acct-id, --acct-name.')
             exit(1)
 
     def need_ps_name():
@@ -290,7 +301,10 @@ def run():
 
     if len(args) > 0:
         op = args[0].lower()
-        if op == 'create-account-assignment':
+        if op == 'describe-account':
+            need_acct_id_or_name()
+            operation = op
+        elif op == 'create-account-assignment':
             need_ps_name()
             need_user_or_group_name()
             operation = op
@@ -350,7 +364,42 @@ def run():
 
         instance_arn = ctx.instance_arn
 
-        if operation == 'create-account-assignment':
+        if operation == 'describe-account':
+
+            acct = None
+            tags = {}
+
+            if options.acct_name != None:
+                acct = get_acct_desc_by_name(ctx, options.acct_name)
+                if acct == None:
+                    raise SystemExit('Account "%s" not found.' % options.acct_name)
+            else:
+                acct = get_acct_desc_by_id(ctx, options.acct_id)
+                if acct == None:
+                    raise SystemExit('Account "%s" not found.' % options.acct_id)
+
+            try:
+                organizations_client = ctx.session.client('organizations')
+
+                tags = organizations_client.list_tags_for_resource (
+                    ResourceId = acct['Id']
+                )
+                # Append the previous data structure
+                acct['Tags'] = tags['Tags']  # append the previous data structure
+            except:
+                pass
+
+            if options.json_only == True:
+                print(json.dumps(acct, indent=4, sort_keys=False, default=str))
+            else:
+                print('Account: %s ("%s"): email: %s %s %s on: %s' % (
+                    acct['Id'], acct['Name'], acct['Email'], acct['Status'],
+                    acct['JoinedMethod'], str(acct['JoinedTimestamp']).split()[0]))
+                for tag in acct.pop('Tags', []):
+                    print('- Tag: "%s" = "%s"' % (tag['Key'], tag['Value']))
+
+
+        elif operation == 'create-account-assignment':
 
             response = {}
             PrincipalType = ''
