@@ -203,6 +203,8 @@ def run():
                       help='Account ID')
     parser.add_option("--ps-name", dest="ps_name", default=None,
                       help='Permission Set name')
+    parser.add_option('--ps-arn', dest='ps_arn', default=None,
+                      help='Permission Set Arn')
     parser.add_option("--ps-desc", dest="ps_desc", default=None,
                       help='Permission Set description')
     parser.add_option("--ps-durn", dest="ps_durn", default=None,
@@ -225,6 +227,11 @@ def run():
             print('No permission set specified; use --ps-name.')
             exit(1)
 
+    def need_ps_name_or_arn():
+        if (options.ps_name == None and options.ps_arn == None):
+            print('No permission set specified; use one of: --ps-name, --ps-arn.')
+            exit(1)
+
     def need_tag_keys():
         if options.tag_keys == None:
             print('No tagkeys specified; use --tag-keys.')
@@ -238,53 +245,53 @@ def run():
             need_ps_name()
             operation = op
         elif op == 'update-ps':
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         elif op == 'delete-ps':
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         elif op == 'describe-ps':
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         elif op == 'tag-ps':
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         elif op == 'untag-ps':
-            need_ps_name()
+            need_ps_name_or_arn()
             need_tag_keys()
             operation = op
         elif op == 'attach-ps-managed-policies':
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         elif op == 'detach-ps-managed-policies':
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         elif op == 'list-ps-managed-policies':
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         elif op == 'attach-ps-customer-managed-policies':
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         elif op == 'detach-ps-customer-managed-policies':
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         elif op == 'list-ps-customer-managed-policies':
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         elif op == 'put-ps-inline-policy':
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         elif op == 'delete-ps-inline-policy':
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         elif op == 'get-ps-inline-policy':
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         elif op == 'list-ps-tags':
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         elif op == 'provision-ps':
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         else:
             print('Unknown command: %s\n' % op)
@@ -414,10 +421,12 @@ def run():
 
         elif operation == 'update-ps':
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print("permission set \"%s\" not found." % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             try:
                 if options.ps_desc == None and options.ps_durn == None:
@@ -450,10 +459,12 @@ def run():
 
         elif operation == 'delete-ps':
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print("permission set \"%s\" not found." % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             try:
                 response = sso_admin_client.delete_permission_set (
@@ -468,22 +479,18 @@ def run():
 
         elif operation == 'describe-ps':
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print("permission set \"%s\" not found." % options.ps_name)
-                exit(1)
+            ps = None
 
-            try:
-                response = sso_admin_client.describe_permission_set (
-                    InstanceArn = instance_arn,
-                    PermissionSetArn = ps_arn
-                )
-                response.pop('ResponseMetadata')
-                print(json.dumps(response, indent=4, sort_keys=False, default=str))
+            if options.ps_name != None:
+                ps = get_permission_set_desc_by_name(ctx, options.ps_name)
+                if ps == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
+            else:
+                ps = get_permission_set_desc_by_arn(ctx, options.ps_arn)
+                if ps == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_arn)
 
-            except Exception as e:
-                print("Error: %s" % str(e))
-                exit(1)
+            print(json.dumps(ps, indent=4, sort_keys=False, default=str))
 
 
         elif operation == 'tag-ps':
@@ -501,10 +508,12 @@ def run():
                 print('No tags specified; use --tags.')
                 exit(1)
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print("permission set \"%s\" not found." % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             try:
                 response = sso_admin_client.tag_resource (
@@ -524,10 +533,12 @@ def run():
                 print('Error: empty value passed to --tag-keys.')
                 exit(1)
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print("permission set \"%s\" not found." % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             tag_keys = options.tag_keys.split(',')
 
@@ -556,10 +567,12 @@ def run():
                 print('No policy_arns specified; use --policy-arns.')
                 exit(1)
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print("permission set \"%s\" not found." % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             for policy_arn in policy_arns:
 
@@ -587,10 +600,12 @@ def run():
                 print('No policy_arns specified; use --policy-arns.')
                 exit(1)
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print("permission set \"%s\" not found." % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             for policy_arn in policy_arns:
 
@@ -607,10 +622,12 @@ def run():
 
         elif operation == 'list-ps-managed-policies':
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print("permission set \"%s\" not found." % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             try:
                 response = sso_admin_client.list_managed_policies_in_permission_set (
@@ -640,10 +657,12 @@ def run():
                 print('No customer managed policies specified; use --cm-policies.')
                 exit(1)
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print("permission set \"%s\" not found." % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             for cm_policy in cm_policies:
 
@@ -672,10 +691,12 @@ def run():
                 print('No customer managed policies specified; use --cm-policies.')
                 exit(1)
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print("permission set \"%s\" not found." % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             for cm_policy in cm_policies:
 
@@ -692,10 +713,12 @@ def run():
 
         elif operation == 'list-ps-customer-managed-policies':
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print("permission set \"%s\" not found." % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             try:
                 response = sso_admin_client.list_customer_managed_policy_references_in_permission_set (
@@ -713,10 +736,12 @@ def run():
 
         elif operation == 'put-ps-inline-policy':
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print("permission set \"%s\" not found." % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             if options.policy_doc != None:
                 ps_policy_doc = read_policy_from_cmdline()
@@ -741,10 +766,12 @@ def run():
 
         elif operation == 'delete-ps-inline-policy':
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print("permission set \"%s\" not found." % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             try:
                 response = sso_admin_client.delete_inline_policy_from_permission_set (
@@ -759,10 +786,12 @@ def run():
 
         elif operation == 'get-ps-inline-policy':
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print("permission set \"%s\" not found." % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             try:
                 response = sso_admin_client.get_inline_policy_for_permission_set (
@@ -779,10 +808,12 @@ def run():
 
         elif operation == 'list-ps-tags':
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print("permission set \"%s\" not found." % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             try:
                 response = sso_admin_client.list_tags_for_resource (
@@ -799,10 +830,12 @@ def run():
 
         elif operation == 'provision-ps':
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print('permission set \'%s\' not found.' % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             if (options.acct_id == None):
 

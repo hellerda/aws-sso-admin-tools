@@ -12,6 +12,7 @@ import logging
 import os
 import sys
 
+from botocore.exceptions import ClientError
 from optparse import OptionParser
 
 
@@ -62,11 +63,13 @@ def get_acct_desc_by_id(ctx, acct_id):
         acct = organizations_client.describe_account (
             AccountId = acct_id
         )
-
         return acct['Account']
 
-    except:
-        return None
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'AccountNotFoundException':  # type: ignore
+            return None
+        else:
+            raise
 
 
 def get_acct_id_by_name(ctx, acct_name):
@@ -87,7 +90,7 @@ def get_acct_name_by_id(ctx, acct_id):
     return None
 
 
-def get_permission_set_arn_by_name(ctx, ps_name):
+def get_permission_set_desc_by_name(ctx, ps_name):
 
     sso_admin_client = ctx.session.client('sso-admin')
 
@@ -100,7 +103,43 @@ def get_permission_set_arn_by_name(ctx, ps_name):
                 PermissionSetArn = item
             )
             if (ps['PermissionSet']['Name'] == ps_name):
-                return (ps['PermissionSet']['PermissionSetArn'])
+                return (ps['PermissionSet'])
+
+    return None
+
+
+def get_permission_set_desc_by_arn(ctx, ps_arn):
+
+    try:
+        sso_admin_client = ctx.session.client('sso-admin')
+
+        ps = sso_admin_client.describe_permission_set (
+            InstanceArn = ctx.instance_arn,
+            PermissionSetArn = ps_arn
+        )
+        return(ps['PermissionSet'])
+
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ResourceNotFoundException':  # type: ignore
+            return None
+        else:
+            raise
+
+
+def get_permission_set_arn_by_name(ctx, ps_name):
+
+    ps = get_permission_set_desc_by_name(ctx, ps_name)
+    if ps != None:
+        return ps['PermissionSetArn']
+
+    return None
+
+
+def get_permission_set_name_by_arn(ctx, ps_arn):
+
+    ps = get_permission_set_desc_by_arn(ctx, ps_arn)
+    if ps != None:
+        return ps['Name']
 
     return None
 
@@ -122,6 +161,20 @@ def get_application_arn_by_name(ctx, app_name):
     return None
 
 
+def get_application_name_by_arn(ctx, app_arn):
+
+    try:
+        sso_admin_client = ctx.session.client('sso-admin')
+
+        app = sso_admin_client.describe_application (
+            ApplicationArn = app_arn
+        )
+        return(app['Name'])
+
+    except:
+        return None
+
+
 def get_tti_arn_by_name(ctx, tti_name):
 
     sso_admin_client = ctx.session.client('sso-admin')
@@ -137,6 +190,20 @@ def get_tti_arn_by_name(ctx, tti_name):
                 return (item['TrustedTokenIssuerArn'])
 
     return None
+
+
+def get_tti_name_by_arn(ctx, tti_arn):
+
+    try:
+        sso_admin_client = ctx.session.client('sso-admin')
+
+        tti = sso_admin_client.describe_trusted_token_issuer (
+            TrustedTokenIssuerArn = tti_arn
+        )
+        return(tti['Name'])
+
+    except:
+        return None
 
 
 def get_group_id_by_name(ctx, group_name):
@@ -159,6 +226,21 @@ def get_group_id_by_name(ctx, group_name):
         return None
 
 
+def get_group_name_by_id(ctx, group_id):
+
+    try:
+        identitystore_client = ctx.session.client('identitystore')
+
+        response = identitystore_client.describe_group (
+            IdentityStoreId = ctx.identitystore_id,
+            GroupId = group_id
+        )
+        return(response['DisplayName'])
+
+    except:
+        return None
+
+
 def get_user_id_by_name(ctx, user_name):
 
     try:
@@ -174,64 +256,6 @@ def get_user_id_by_name(ctx, user_name):
             }
         )
         return(response['UserId'])
-
-    except:
-        return None
-
-
-def get_permission_set_name_by_arn(ctx, ps_arn):
-
-    try:
-        sso_admin_client = ctx.session.client('sso-admin')
-
-        ps = sso_admin_client.describe_permission_set (
-            InstanceArn = ctx.instance_arn,
-            PermissionSetArn = ps_arn
-        )
-        return(ps['PermissionSet']['Name'])
-
-    except:
-        return None
-
-
-def get_application_name_by_arn(ctx, app_arn):
-
-    try:
-        sso_admin_client = ctx.session.client('sso-admin')
-
-        app = sso_admin_client.describe_application (
-            ApplicationArn = app_arn
-        )
-        return(app['Name'])
-
-    except:
-        return None
-
-
-def get_tti_name_by_arn(ctx, tti_arn):
-
-    try:
-        sso_admin_client = ctx.session.client('sso-admin')
-
-        tti = sso_admin_client.describe_trusted_token_issuer (
-            TrustedTokenIssuerArn = tti_arn
-        )
-        return(tti['Name'])
-
-    except:
-        return None
-
-
-def get_group_name_by_id(ctx, group_id):
-
-    try:
-        identitystore_client = ctx.session.client('identitystore')
-
-        response = identitystore_client.describe_group (
-            IdentityStoreId = ctx.identitystore_id,
-            GroupId = group_id
-        )
-        return(response['DisplayName'])
 
     except:
         return None
@@ -310,11 +334,13 @@ def run():
     lookup-group-name
     lookup-ps-name
     lookup-app-name
+    lookup-tti-name
     lookup-account-id
     lookup-user-id
     lookup-group-id
     lookup-ps-arn
     lookup-app-arn
+    lookup-tti-arn
     '''.rstrip()
 
     usage = 'usage: %prog command [options]\n   ex: %prog lookup-ps-arn --ps_name MyPermissionSet\n'
