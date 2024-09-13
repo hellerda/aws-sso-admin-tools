@@ -45,9 +45,11 @@ def list_assigned_principals_for_ps_in_account(ctx, indent, acct_id, ps_arn):
         for item in page['AccountAssignments']:
 
             if (item['PrincipalType'] == 'USER'):
-                print('%sUSER: %s' % (bullet, get_user_name_by_id(ctx, item['PrincipalId'])))
+                pn = get_user_name_by_id(ctx, item['PrincipalId'])
+                print('%sUSER: %s' % (bullet, item['PrincipalId'] if pn == None else pn))
             elif (item['PrincipalType'] == 'GROUP'):
-                print('%sGROUP: %s' % (bullet, get_group_name_by_id(ctx, item['PrincipalId'])))
+                pn = get_group_name_by_id(ctx, item['PrincipalId'])
+                print('%sGROUP: %s' % (bullet, item['PrincipalId'] if pn == None else pn))
 
 
 def get_ps_provisioned_to_account(ctx, acct_id):
@@ -234,8 +236,12 @@ def run():
                       help='Account name')
     parser.add_option('--ps-name', dest='ps_name', default=None,
                       help='Permission Set name')
+    parser.add_option('--user-id', dest='user_id', default=None,
+                      help='User ID')
     parser.add_option('--user-name', dest='user_name', default=None,
                       help='User name')
+    parser.add_option('--group-id', dest='group_id', default=None,
+                      help='Group ID')
     parser.add_option('--group-name', dest='group_name', default=None,
                       help='Group name')
     parser.add_option('--ou-name', dest='ou_name', default=None,
@@ -273,7 +279,7 @@ def run():
             exit(1)
 
     def need_acct_id_or_name():
-        if (options.acct_id == None and options.acct_name) == None:
+        if (options.acct_id == None and options.acct_name == None):
             print('No account specified; use one of: --acct-id, --acct-name.')
             exit(1)
 
@@ -288,8 +294,15 @@ def run():
             exit(1)
 
     def need_user_or_group_name():
-        if (options.user_name == None and options.group_name) == None:
+        if (options.user_name == None and options.group_name == None):
             print('No user or group specified; use one of: --user-name, --group-name.')
+            exit(1)
+
+    def need_principal():
+        if (options.user_name == None and options.user_id == None and
+                options.group_name == None and options.group_id == None):
+            print('No user or group specified; use one of: %s' %
+                  '--user-name, --user-id, --group-name, --group-id.')
             exit(1)
 
     def need_ou_name():
@@ -306,11 +319,11 @@ def run():
             operation = op
         elif op == 'create-account-assignment':
             need_ps_name()
-            need_user_or_group_name()
+            need_principal()
             operation = op
         elif op == 'delete-account-assignment':
             need_ps_name()
-            need_user_or_group_name()
+            need_principal()
             operation = op
         elif op == 'provision-ps':
             need_ps_name()
@@ -410,20 +423,28 @@ def run():
                 print('permission set \'%s\' not found.' % options.ps_name)
                 exit(1)
 
-            if options.user_name != None:
-                user_id = get_user_id_by_name(ctx, options.user_name)
-                if user_id == None:
-                    print('User \'%s\' not found.' % options.user_name)
-                    exit(1)
-                print('Assigning User \"%s\"...' % options.user_name)
+            if options.user_id != None:
+                user_id = options.user_id
+                print('Assigning User "%s"...' % options.user_id)
                 PrincipalType = 'USER'
                 PrincipalId = user_id
-            else:
+            elif options.user_name != None:
+                user_id = get_user_id_by_name(ctx, options.user_name)
+                if user_id == None:
+                    raise SystemExit('User "%s" not found.' % options.user_name)
+                print('Assigning User "%s"...' % options.user_name)
+                PrincipalType = 'USER'
+                PrincipalId = user_id
+            elif options.group_id != None:
+                group_id = options.group_id
+                print('Assigning Group "%s"...' % options.group_id)
+                PrincipalType = 'GROUP'
+                PrincipalId = group_id
+            elif options.group_name != None:
                 group_id = get_group_id_by_name(ctx, options.group_name)
                 if group_id == None:
-                    print('Group \'%s\' not found.' % options.group_name)
-                    exit(1)
-                print('Assigning Group \"%s\"...' % options.group_name)
+                    raise SystemExit('Group "%s" not found.' % options.group_name)
+                print('Assigning Group "%s"...' % options.group_name)
                 PrincipalType = 'GROUP'
                 PrincipalId = group_id
 
@@ -450,20 +471,28 @@ def run():
                 print('permission set \'%s\' not found.' % options.ps_name)
                 exit(1)
 
-            if options.user_name != None:
-                user_id = get_user_id_by_name(ctx, options.user_name)
-                if user_id == None:
-                    print('User \'%s\' not found.' % options.user_name)
-                    exit(1)
-                print('Unassigning User \"%s\"...' % options.user_name)
+            if options.user_id != None:
+                user_id = options.user_id
+                print('Unassigning User "%s"...' % options.user_id)
                 PrincipalType = 'USER'
                 PrincipalId = user_id
-            else:
+            elif options.user_name != None:
+                user_id = get_user_id_by_name(ctx, options.user_name)
+                if user_id == None:
+                    raise SystemExit('User "%s" not found.' % options.user_name)
+                print('Unassigning User "%s"...' % options.user_name)
+                PrincipalType = 'USER'
+                PrincipalId = user_id
+            elif options.group_id != None:
+                group_id = options.group_id
+                print('Unassigning Group "%s"...' % options.group_id)
+                PrincipalType = 'GROUP'
+                PrincipalId = group_id
+            elif options.group_name != None:
                 group_id = get_group_id_by_name(ctx, options.group_name)
                 if group_id == None:
-                    print('Group \'%s\' not found.' % options.group_name)
-                    exit(1)
-                print('Unassigning Group \"%s\"...' % options.group_name)
+                    raise SystemExit('Group "%s" not found.' % options.group_name)
+                print('Unassigning Group "%s"...' % options.group_name)
                 PrincipalType = 'GROUP'
                 PrincipalId = group_id
 
