@@ -59,6 +59,9 @@ def run():
                       help='Group name')
     parser.add_option('--group-desc', dest='group_desc', default=None,
                       help='Group description')
+    parser.add_option('-j', '--json-only', dest='json_only', default=False,
+                      action='store_true',
+                      help='Output JSON only, quash human-readable fluff.')
 
     (options, args) = parser.parse_args()
 
@@ -207,22 +210,27 @@ def run():
             try:
                 paginator = identitystore_client.get_paginator('list_groups')
 
+                groups = []
+
                 for page in paginator.paginate(IdentityStoreId = identitystore_id):
-                    for item in page["Groups"]:
+                    for group in page["Groups"]:
+                        groups.append(group)
 
-                        try:
-                            descr = item['Description']
-                        except KeyError:
-                            descr = '-'
+                        if options.json_only != True:
 
-                        try:
-                            cb = item['ExternalIds']
-                            cb = 'SCIM'
-                        except KeyError:
-                            cb = 'Manual'
+                            descr = group.pop('Description', '-')
 
-                        print('Group: \"%s\"  Description: \"%s\" (%s)' %
-                            (item['DisplayName'], descr, cb))
+                            try:
+                                cb = group['ExternalIds']
+                                cb = 'SCIM'
+                            except KeyError:
+                                cb = 'Manual'
+
+                            print('Group: "%s"  Description: "%s" (%s)' %
+                                (group['DisplayName'], descr, cb))
+
+                if options.json_only == True:
+                    print(json.dumps(groups, indent=4, sort_keys=False, default=str))
 
             except Exception as e:
                 print("Error: %s" % str(e))
@@ -322,13 +330,21 @@ def run():
             try:
                 paginator = identitystore_client.get_paginator('list_users')
 
+                users = []
+
                 for page in paginator.paginate(IdentityStoreId = identitystore_id):
-                    for item in page["Users"]:
+                    for user in page['Users']:
+                        users.append(user)
 
-                        title = item.pop('Title', '-')
+                        if options.json_only != True:
 
-                        print('User: %s (%s) Title: %s' %
-                            (item['UserName'], item['DisplayName'], title))
+                            title = user.pop('Title', '-')
+
+                            print('User: %s (%s) Title: %s' %
+                                (user['UserName'], user['DisplayName'], title))
+
+                if options.json_only == True:
+                    print(json.dumps(users, indent=4, sort_keys=False, default=str))
 
             except Exception as e:
                 print("Error: %s" % str(e))
@@ -425,19 +441,36 @@ def run():
 
             group_id = get_group_id_by_name(ctx, options.group_name)
             if group_id == None:
-                print('Group \'%s\' not found.' % options.group_name)
+                print('Group "%s" not found.' % options.group_name)
                 exit(1)
 
             try:
                 paginator = identitystore_client.get_paginator('list_group_memberships')
 
+                memberships = []
+
+                # Accumulate...
                 for page in paginator.paginate(
                     IdentityStoreId = identitystore_id,
                     GroupId = group_id
                 ):
-                    for item in page["GroupMemberships"]:
-                        print('User: \"%s\" has MEMBERSHIP_ID: %s in Group: \"%s\"' % (get_user_name_by_id(ctx,
-                            item['MemberId']['UserId']), item['MembershipId'], options.group_name))
+                    for member in page['GroupMemberships']:
+                        memberships.append(member)
+
+                # Print result...
+                if options.json_only == True:
+                    print(json.dumps(memberships, indent=4, sort_keys=False, default=str))
+
+                else:
+                    print('Listing all group memberships for "%s"...' % options.group_name)
+
+                    if memberships == []:
+                        print('- None found.')
+                        exit(1)
+
+                    for member in memberships:
+                        print('User: "%s" has MEMBERSHIP_ID: %s in Group: "%s"' % (get_user_name_by_id(
+                            ctx, member['MemberId']['UserId']), member['MembershipId'], options.group_name))
 
             except Exception as e:
                 print("Error: %s" % str(e))
@@ -448,20 +481,28 @@ def run():
 
             user_id = get_user_id_by_name(ctx, options.user_name)
             if user_id == None:
-                print('User \'%s\' not found.' % options.user_name)
-                exit(1)
-            print('Listing all group memberships for \"%s\"...' % options.user_name)
-
-            group_names = []
-            for group in get_group_memberships_for_user(ctx, user_id):
-                group_names.append(group['DisplayName'])
-
-            if group_names == []:
-                print('- None found.')
+                print('User "%s" not found.' % options.user_name)
                 exit(1)
 
-            for group in sorted(group_names):
-                print(group)
+            groups = get_group_memberships_for_user(ctx, user_id)
+
+            # Print result...
+            if options.json_only == True:
+                print(json.dumps(groups, indent=4, sort_keys=False, default=str))
+
+            else:
+                print('Listing all group memberships for "%s"...' % options.user_name)
+
+                group_names = []
+                for group in groups:
+                    group_names.append(group['DisplayName'])
+
+                if group_names == []:
+                    print('- None found.')
+                    exit(1)
+
+                for group in sorted(group_names):
+                    print(group)
 
 
         elif operation == 'create-group-membership':
