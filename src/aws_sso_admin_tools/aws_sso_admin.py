@@ -235,6 +235,10 @@ def run():
             manage_account_assignments.run()
         elif op == 'list-all-acct-assignments-for-provisioned-ps':
             manage_account_assignments.run()
+        elif op == 'list-all-acct-assignments-for-user':
+            manage_account_assignments.run()
+        elif op == 'list-all-acct-assignments-for-group':
+            manage_account_assignments.run()
         elif op == 'list-all-acct-assignments-for-principal':
             manage_account_assignments.run()
         elif op == 'list-all-acct-assignments-for-ps-in-org':
