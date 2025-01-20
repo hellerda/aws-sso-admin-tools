@@ -135,6 +135,9 @@ aws-sso-admin list-all-acct-assignments-for-provisioned-ps --ps-name "App1_Deplo
 aws-sso-admin list-all-ps-in-org
 aws-sso-admin list-all-acct-assignments-for-ps-in-org
 
+aws-sso-admin list-all-acct-assignments-for-user --user-name "ima.user@my.org"
+aws-sso-admin list-all-acct-assignments-for-group --group-name "App1_Deployers"
+
 aws-sso-admin list-all-acct-assignments-for-principal --user-name "ima.user@my.org"
 aws-sso-admin list-all-acct-assignments-for-principal --group-name "App1_Deployers"
 

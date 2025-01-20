@@ -216,6 +216,8 @@ def run():
     list-assigned-principals-for-ps-in-account
     list-accounts-for-provisioned-ps
     list-all-acct-assignments-for-provisioned-ps
+    list-all-acct-assignments-for-user
+    list-all-acct-assignments-for-group
     list-all-acct-assignments-for-principal
     list-all-acct-assignments-for-ps-in-org
     list-all-ps-in-org
@@ -236,6 +238,8 @@ def run():
                       help='Account name')
     parser.add_option('--ps-name', dest='ps_name', default=None,
                       help='Permission Set name')
+    parser.add_option('--ps-arn', dest='ps_arn', default=None,
+                      help='Permission Set Arn')
     parser.add_option('--user-id', dest='user_id', default=None,
                       help='User ID')
     parser.add_option('--user-name', dest='user_name', default=None,
@@ -258,12 +262,24 @@ def run():
     parser.add_option('--no-show-principal-names', dest='show_principal_names', default=True,
                       action='store_false',
                       help='Suppress showing user or group names where applicable')
+    parser.add_option('--show-ps-desc', dest='show_ps_desc', default=True,
+                      action='store_true',
+                      help='Show permission set descriptions where applicable')
+    parser.add_option('--no-show-ps-desc', dest='show_ps_desc', default=True,
+                      action='store_false',
+                      help='Suppress showing permission set descriptions where applicable')
     parser.add_option('--show-target-arns', dest='show_target_arns', default=False,
                       action='store_true',
                       help='Show assume-role target Arns for a PS')
     parser.add_option('--no-show-target-arns', dest='show_target_arns', default=False,
                       action='store_false',
                       help='Suppress showing assume-role target Arns for a PS')
+    parser.add_option('--compact', dest='compact', default=True,
+                      action='store_true',
+                      help='Show compact output where applicable')
+    parser.add_option('--no-compact', '--expand', dest='compact', default=True,
+                      action='store_false',
+                      help='Show expanded output where applicable')
     parser.add_option('-j', '--json-only', dest='json_only', default=False,
                       action='store_true',
                       help='Output JSON only, quash human-readable fluff.')
@@ -286,6 +302,11 @@ def run():
     def need_ps_name():
         if options.ps_name == None:
             print('No permission set specified; use --ps-name.')
+            exit(1)
+
+    def need_ps_name_or_arn():
+        if (options.ps_name == None and options.ps_arn == None):
+            print('No permission set specified; use one of: --ps-name, --ps-arn.')
             exit(1)
 
     def need_user_name():
@@ -318,25 +339,31 @@ def run():
             need_acct_id_or_name()
             operation = op
         elif op == 'create-account-assignment':
-            need_ps_name()
+            need_ps_name_or_arn()
             need_principal()
             operation = op
         elif op == 'delete-account-assignment':
-            need_ps_name()
+            need_ps_name_or_arn()
             need_principal()
             operation = op
         elif op == 'provision-ps':
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         elif op == 'list-assigned-principals-for-ps-in-account':
             need_acct_id()
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         elif op == 'list-accounts-for-provisioned-ps':
-            need_ps_name()
+            need_ps_name_or_arn()
             operation = op
         elif op == 'list-all-acct-assignments-for-provisioned-ps':
-            need_ps_name()
+            need_ps_name_or_arn()
+            operation = op
+        elif op == 'list-all-acct-assignments-for-user':
+            need_user_or_group_name()
+            operation = op
+        elif op == 'list-all-acct-assignments-for-group':
+            need_user_or_group_name()
             operation = op
         elif op == 'list-all-acct-assignments-for-principal':
             need_user_or_group_name()
@@ -356,7 +383,7 @@ def run():
             operation = op
         elif op == 'verify-access-for-user':
             need_acct_id()
-            need_ps_name()
+            need_ps_name_or_arn()
             need_user_name()
             operation = op
         else:
@@ -418,10 +445,12 @@ def run():
             PrincipalType = ''
             PrincipalId = ''
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print('permission set \'%s\' not found.' % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             if options.user_id != None:
                 user_id = options.user_id
@@ -466,10 +495,12 @@ def run():
             PrincipalType = ''
             PrincipalId = ''
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print('permission set \'%s\' not found.' % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             if options.user_id != None:
                 user_id = options.user_id
@@ -510,10 +541,12 @@ def run():
 
         elif operation == 'provision-ps':
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print('permission set \'%s\' not found.' % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             if (options.acct_id == None):
 
@@ -542,12 +575,14 @@ def run():
         # --------------------------------------------------------------------------
         elif operation == 'list-assigned-principals-for-ps-in-account':
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print('permission set \'%s\' not found.' % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
 
-            print('Listing assigned principals for PS \'%s\' in account: %s...' %
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
+
+            print('Listing assigned principals for PS "%s" in account: %s...' %
                 (options.ps_name, options.acct_id))
 
             list_assigned_principals_for_ps_in_account(ctx, 1, options.acct_id, ps_arn)
@@ -558,12 +593,14 @@ def run():
         # --------------------------------------------------------------------------
         elif operation == 'list-accounts-for-provisioned-ps':
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print('permission set \'%s\' not found.' % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
 
-            print('Listing assigned accounts for PS \'%s\'...' % options.ps_name)
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
+
+            print('Listing assigned accounts for PS "%s"...' % options.ps_name)
 
             for acct_id in get_accounts_for_provisioned_permission_set(ctx, ps_arn):
 
@@ -578,12 +615,14 @@ def run():
         # --------------------------------------------------------------------------
         elif operation == 'list-all-acct-assignments-for-provisioned-ps':
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print('permission set \'%s\' not found.' % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
 
-            print('Listing assigned accounts for PS \'%s\'...' % options.ps_name)
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
+
+            print('Listing assigned accounts for PS "%s"...' % options.ps_name)
 
             for acct_id in get_accounts_for_provisioned_permission_set(ctx, ps_arn):
 
@@ -598,7 +637,9 @@ def run():
         # --------------------------------------------------------------------------
         # This is our FULL view BY PRINCIPAL.
         # --------------------------------------------------------------------------
-        elif operation == 'list-all-acct-assignments-for-principal':
+        elif operation in ['list-all-acct-assignments-for-user',
+                           'list-all-acct-assignments-for-group',
+                           'list-all-acct-assignments-for-principal']:
 
             user_id = None
             group_id = None
@@ -609,7 +650,7 @@ def run():
             if options.user_name != None:
                 user_id = get_user_id_by_name(ctx, options.user_name)
                 if user_id == None:
-                    print('User \'%s\' not found.' % options.user_name)
+                    print('User "%s" not found.' % options.user_name)
                     exit(1)
                 principal_id = user_id
                 principal_type = 'USER'
@@ -617,7 +658,7 @@ def run():
             else:
                 group_id = get_group_id_by_name(ctx, options.group_name)
                 if group_id == None:
-                    print('Group \'%s\' not found.' % options.group_name)
+                    print('Group "%s" not found.' % options.group_name)
                     exit(1)
                 principal_id = group_id
                 principal_type = 'GROUP'
@@ -631,38 +672,46 @@ def run():
             ):
                 for acct_asst in page['AccountAssignments']:
 
+                    # These now refer to the principal returned, not the principal we queried on.
                     acct_id = acct_asst['AccountId']
                     ps_arn = acct_asst['PermissionSetArn']
+                    principal_id = acct_asst['PrincipalId']
+                    principal_type = acct_asst['PrincipalType']
                     principal_name = ''
+                    target_arns = []
 
-                    ps_name = get_permission_set_name_by_arn(ctx, ps_arn)
-                    if (ps_name == None):
-                        raise SystemExit('PS with "%s" not found.' % ps_arn)
+                    ps = sso_admin_client.describe_permission_set (
+                        InstanceArn = ctx.instance_arn,
+                        PermissionSetArn = ps_arn
+                    )
+                    ps_name = ps['PermissionSet']['Name']
+                    ps_desc = ps['PermissionSet'].pop('Description', '-')
 
                     if options.quash_admin == True:
                         if (ps_name == 'AdministratorAccess'):
                             continue
 
-                    if (acct_asst['PrincipalType'] == 'USER'):
-                        principal_name = get_user_name_by_id(ctx, acct_asst['PrincipalId'])
-                    elif (acct_asst['PrincipalType'] == 'GROUP'):
-                        principal_name = get_group_name_by_id(ctx, acct_asst['PrincipalId'])
+                    if options.show_principal_names == True:
+                        if (principal_type == 'USER'):
+                            principal_name = get_user_name_by_id(ctx, principal_id)
+                        elif (principal_type == 'GROUP'):
+                            principal_name = get_group_name_by_id(ctx, principal_id)
 
-                    if (principal_name == None):
-                        raise SystemExit('Principal with id "%s" not found.' % acct_asst['PrincipalId'])
+                        if (principal_name == None):
+                            # Should not happen.
+                            raise SystemExit('Principal with id "%s" not found.' % principal_id)
 
                     # Note the list can be empty if the option is off or this PS has no target arns.
                     if (options.show_target_arns == True):
                         target_arns = sorted(get_target_arns_for_ps(ctx, ps_arn))
-                    else:
-                        target_arns = []
 
                     # A dict holding a dict holding a tuple of values...
-                    assignments.setdefault(acct_id, {}).setdefault(ps_name, ([], []))
-                    # Append the list of PS names...
-                    assignments[acct_id][ps_name][0].append(principal_name)
-                    # Replace the list of target_arns...
-                    assignments[acct_id][ps_name] = (assignments[acct_id][ps_name][0], target_arns)
+                    assignments.setdefault(acct_id, {}).setdefault(ps_name, ('', [], []))
+                    # Append the list of principals...
+                    assignments[acct_id][ps_name][1].append((principal_type, principal_name))
+                    # Update the PS description and list of target_arns...
+                    assignments[acct_id][ps_name] = (
+                        ps_desc, assignments[acct_id][ps_name][1], target_arns)
 
             # Print the dict we just built...
             for k, v in sorted(assignments.items()):
@@ -676,12 +725,22 @@ def run():
 
                 # Show all accesses in the account.
                 for ps_name, val in sorted(v.items(), key=lambda x: x[0].lower()):
-                    (principal_list, target_arns) = val
+                    (ps_desc, principal_list, target_arns) = val
 
-                    if options.show_principal_names == True:
-                        print('  * %s %s' % (ps_name, principal_list))
-                    else:
-                        print('  * %s' % ps_name)
+                    ps_desc_str = ''
+                    principal_list_str = ''
+
+                    if options.show_ps_desc == True:
+                        ps_desc_str = ' ("%s")' % ps_desc
+
+                    if (options.show_principal_names == True) and (options.compact == True):
+                        principal_list_str = ' %s' % [t[1] for t in principal_list]
+
+                    print('  * %s%s%s' % (ps_name, ps_desc_str, principal_list_str))
+
+                    if (options.show_principal_names == True) and (options.compact == False):
+                        for p in principal_list:
+                            print('    * %s: %s' % p)
 
                     if not target_arns == []:
                         for arn in target_arns:
@@ -719,7 +778,10 @@ def run():
 
             for ps_name, ps_arn, ps_desc, ps_dura in sorted(ps_list, key=lambda x: x[0].lower()):
 
-                print('Listing assignments for PS "%s": ("%s") (%s)...' % (ps_name, ps_desc, ps_dura))
+                if options.show_ps_desc == True:
+                    print('Listing assignments for PS "%s": ("%s") (%s)...' % (ps_name, ps_desc, ps_dura))
+                else:
+                    print('Listing assignments for PS: "%s"...' % (ps_name))
 
                 # Optionally show assume-role targets.
                 if options.show_target_arns == True:
@@ -814,8 +876,10 @@ def run():
 
             for ps_name, ps_arn, ps_dura, ps_desc in sorted(ps_list, key=lambda x: x[0].lower()):
 
-                print('PS: \"%s\"  Description: \"%s\" (%s)' %
-                        (ps_name, ps_desc, ps_dura))
+                if options.show_ps_desc == True:
+                    print('PS: "%s"  Description: "%s" (%s)' % (ps_name, ps_desc, ps_dura))
+                else:
+                    print('PS: "%s"' % (ps_name))
 
                 # Optionally show assume-role targets.
                 if options.show_target_arns == True:
@@ -859,8 +923,10 @@ def run():
 
             for ps_name, ps_arn, ps_dura, ps_desc in sorted(ps_list, key=lambda x: x[0].lower()):
 
-                print('PS: \"%s\"  Description: \"%s\" (%s)' %
-                        (ps_name, ps_desc, ps_dura))
+                if options.show_ps_desc == True:
+                    print('PS: "%s"  Description: "%s" (%s)' % (ps_name, ps_desc, ps_dura))
+                else:
+                    print('PS: "%s"' % (ps_name))
 
                 if options.show_principal_names == True:
                     list_assigned_principals_for_ps_in_account(ctx, 1, options.acct_id, ps_arn)
@@ -888,8 +954,8 @@ def run():
             for page in organizations_client.get_paginator('list_accounts_for_parent').paginate(
                 ParentId = ou_id
             ):
-                for item in page['Accounts']:
-                    acct_list.append((item['Id'], item['Name']))
+                for acct in page['Accounts']:
+                    acct_list.append((acct['Id'], acct['Name']))
 
             sort_key = 0 if options.show_acct_names == False else 1
             for acct_id, acct_name in sorted(acct_list, key=lambda x: x[sort_key].lower()):
@@ -938,17 +1004,19 @@ def run():
         # --------------------------------------------------------------------------
         elif operation == 'verify-access-for-user':
 
-            ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
-            if ps_arn == None:
-                print('permission set \'%s\' not found.' % options.ps_name)
-                exit(1)
+            ps_arn = options.ps_arn
+
+            if options.ps_name != None:
+                ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
+                if ps_arn == None:
+                    raise SystemExit('Permission set "%s" not found.' % options.ps_name)
 
             user_id = get_user_id_by_name(ctx, options.user_name)
             if user_id == None:
-                print('User \'%s\' not found.' % options.user_name)
+                print('User "%s" not found.' % options.user_name)
                 exit(1)
 
-            print('Verifying assigment of PS \'%s\' for user \'%s\' in account: %s...' %
+            print('Verifying assigment of PS "%s" for user "%s" in account: %s...' %
                 (options.ps_name, options.user_name, options.acct_id))
 
             paginator = sso_admin_client.get_paginator('list_account_assignments_for_principal')
@@ -958,9 +1026,9 @@ def run():
                 PrincipalId = user_id,
                 PrincipalType = 'USER'
             ):
-                for item in page['AccountAssignments']:
+                for acct in page['AccountAssignments']:
 
-                    if item['PermissionSetArn'] == ps_arn:
+                    if acct['PermissionSetArn'] == ps_arn:
                         print('Access verified.')
                         exit(0)
 
