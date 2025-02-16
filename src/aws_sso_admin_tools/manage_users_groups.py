@@ -53,6 +53,8 @@ def run():
 
     parser.add_option('--profile', dest='aws_profile', default=None,
                       help='AWS profile to use')
+    parser.add_option('--region', dest='region', default=None,
+                      help='AWS region to use')
     parser.add_option('--user-name', dest='user_name', default=None,
                       help='User name')
     parser.add_option('--group-name', dest='group_name', default=None,
@@ -135,6 +137,9 @@ def run():
         parser.print_help()
         exit(1)
 
+    if 'AWS_DEFAULT_REGION' not in os.environ and 'AWS_REGION' in os.environ:
+        os.environ['AWS_DEFAULT_REGION'] = os.environ['AWS_REGION']
+
 
     # ----------------------------------------------------------------------------------------------
     # Customize this...
@@ -152,7 +157,7 @@ def run():
     # ----------------------------------------------------------------------------------------------
     # Ops start here...
     # ----------------------------------------------------------------------------------------------
-    with AWSContextManager(options.aws_profile) as ctx:
+    with AWSContextManager(options.aws_profile, options.region) as ctx:
 
         identitystore_client = ctx.session.client('identitystore')
 

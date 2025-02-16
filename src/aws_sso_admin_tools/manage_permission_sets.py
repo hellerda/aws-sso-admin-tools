@@ -199,6 +199,8 @@ def run():
 
     parser.add_option('--profile', dest='aws_profile', default=None,
                       help='AWS profile to use')
+    parser.add_option('--region', dest='region', default=None,
+                      help='AWS region to use')
     parser.add_option('--acct-id', dest='acct_id', default=None,
                       help='Account ID')
     parser.add_option("--ps-name", dest="ps_name", default=None,
@@ -300,6 +302,9 @@ def run():
         parser.print_help()
         exit(1)
 
+    if 'AWS_DEFAULT_REGION' not in os.environ and 'AWS_REGION' in os.environ:
+        os.environ['AWS_DEFAULT_REGION'] = os.environ['AWS_REGION']
+
 
     # ----------------------------------------------------------------------------------------------
     # Defaults (do not edit)...
@@ -362,7 +367,7 @@ def run():
     # ----------------------------------------------------------------------------------------------
     # Ops start here...
     # ----------------------------------------------------------------------------------------------
-    with AWSContextManager(options.aws_profile) as ctx:
+    with AWSContextManager(options.aws_profile, options.region) as ctx:
 
         sso_admin_client = ctx.session.client('sso-admin')
 
