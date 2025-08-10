@@ -203,7 +203,7 @@ def run():
                       help='AWS region to use')
     parser.add_option('--acct-id', dest='acct_id', default=None,
                       help='Account ID')
-    parser.add_option("--ps-name", dest="ps_name", default=None,
+    parser.add_option('--ps-name', dest='ps_name', default=None,
                       help='Permission Set name')
     parser.add_option('--ps-arn', dest='ps_arn', default=None,
                       help='Permission Set Arn')

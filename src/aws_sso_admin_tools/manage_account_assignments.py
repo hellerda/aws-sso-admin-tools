@@ -92,74 +92,6 @@ def get_accounts_for_provisioned_permission_set(ctx, ps_arn):
         exit(1)
 
 
-def get_organizational_root(ctx):
-    '''
-    Get organizational root (requires ListRoots permission)
-    '''
-
-    organizations_client = ctx.session.client('organizations')
-
-    try:
-        for page in organizations_client.get_paginator('list_roots').paginate():
-            for item in page['Roots']:
-                if (item['Name'] == 'Root'):
-                    return item['Id']
-
-        raise ValueError('Organizational root not found.')
-
-    except Exception as e:
-        print("Error: %s" % str(e))
-        exit(1)
-
-
-def get_account_name(ctx, acct_id):
-    '''
-    Get an account name (requires DescribeAccount permission)
-    '''
-
-    organizations_client = ctx.session.client('organizations')
-
-    try:
-        response = organizations_client.describe_account (
-            AccountId = acct_id
-        )
-
-        if response['Account']['Name'] != None:
-            return response['Account']['Name']
-
-    except organizations_client.exceptions.AccountNotFoundException as e:
-        return ''
-
-    except Exception as e:
-        print("Error while looking up account name: %s" % str(e))
-        exit(1)
-
-
-def get_ou_id_by_name(ctx, ou_name):
-    '''
-    Lookup an OU (requires ListOrganizationalUnitsForParent)
-    '''
-
-    organizations_client = ctx.session.client('organizations')
-
-    parent_id = get_organizational_root(ctx)
-
-    try:
-        for page in organizations_client.get_paginator('list_organizational_units_for_parent').paginate(
-             ParentId = parent_id
-        ):
-            # TODO: Search paths, currently it will only find root-level OUs
-            for item in page['OrganizationalUnits']:
-                if (item['Name'] == ou_name):
-                    return item['Id']
-
-        raise ValueError('Organizational unit \"%s\" not found.' % ou_name)
-
-    except Exception as e:
-        print('Error: %s' % e)
-        exit(1)
-
-
 # ------------------------------------------------------------------------------
 # This is still a work in progress...
 # ------------------------------------------------------------------------------
@@ -612,7 +544,7 @@ def run():
                 if options.show_acct_names == False:
                     print('- %s' % acct_id)
                 else:
-                    print('- %s -- ("%s")' % (acct_id, get_account_name(ctx, acct_id)))
+                    print('- %s -- ("%s")' % (acct_id, get_acct_name_by_id(ctx, acct_id)))
 
 
         # --------------------------------------------------------------------------
@@ -634,7 +566,7 @@ def run():
                 if options.show_acct_names == False:
                     print('ACCT: %s...' % acct_id)
                 else:
-                    print('ACCT: %s --- ("%s")...' % (acct_id, get_account_name(ctx, acct_id)))
+                    print('ACCT: %s --- ("%s")...' % (acct_id, get_acct_name_by_id(ctx, acct_id)))
 
                 list_assigned_principals_for_ps_in_account(ctx, 1, acct_id, ps_arn)
 
@@ -726,7 +658,7 @@ def run():
                     print('- Assigned access in account "%s"...' % k)
                 else:
                     print('- Assigned access in account "%s" --- ("%s")...' %
-                        (k, get_account_name(ctx, k)))
+                        (k, get_acct_name_by_id(ctx, k)))
 
                 # Show all accesses in the account.
                 for ps_name, val in sorted(v.items(), key=lambda x: x[0].lower()):
@@ -802,7 +734,7 @@ def run():
                         print('- ACCT: %s...' % acct_id)
                     else:
                         print('- ACCT: %s --- ("%s")...' %
-                              (acct_id, get_account_name(ctx, acct_id)))
+                              (acct_id, get_acct_name_by_id(ctx, acct_id)))
 
                     if options.show_principal_names == True:
                         list_assigned_principals_for_ps_in_account(ctx, 2, acct_id, ps_arn)
@@ -859,7 +791,7 @@ def run():
                 print('Listing Permission Sets provisioned to account: %s...' % options.acct_id)
             else:
                 print('Listing Permission Sets provisioned to account: %s -- ("%s")...' % (
-                    options.acct_id, get_account_name(ctx, options.acct_id)))
+                    options.acct_id, get_acct_name_by_id(ctx, options.acct_id)))
 
             ps_arns = get_ps_provisioned_to_account(ctx, options.acct_id)
 
@@ -906,7 +838,7 @@ def run():
                 print('Listing all Permission Sets assignments in account: %s...' % options.acct_id)
             else:
                 print('Listing all Permission Sets assignments in account: %s -- ("%s")...' % (
-                    options.acct_id, get_account_name(ctx, options.acct_id)))
+                    options.acct_id, get_acct_name_by_id(ctx, options.acct_id)))
 
             ps_arns = get_ps_provisioned_to_account(ctx, options.acct_id)
 
@@ -951,6 +883,8 @@ def run():
         elif operation == 'list-all-ps-assignments-in-ou':
 
             ou_id = get_ou_id_by_name(ctx, options.ou_name)
+            if ou_id == None:
+                raise SystemExit('Organizational Unit "%s" not found.' % options.ou_name)
 
             print('Listing all Permission Set assignments in OU: %s...' % options.ou_name)
 

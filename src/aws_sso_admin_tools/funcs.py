@@ -38,6 +38,25 @@ def get_sso_instance(ctx):
     return(instance_arn, identitystore_id)
 
 
+def get_organizational_root(ctx):
+    '''
+    Get organizational root (requires ListRoots permission)
+    '''
+    organizations_client = ctx.session.client('organizations')
+
+    try:
+        for page in organizations_client.get_paginator('list_roots').paginate():
+            for item in page['Roots']:
+                if (item['Name'] == 'Root'):
+                    return item['Id']
+
+        raise ValueError('Organizational root not found.')
+
+    except Exception as e:
+        print("Error: %s" % str(e))
+        exit(1)
+
+
 def get_acct_desc_by_name(ctx, acct_name):
 
     organizations_client = ctx.session.client('organizations')
@@ -88,6 +107,130 @@ def get_acct_name_by_id(ctx, acct_id):
         return acct['Name']
 
     return None
+
+
+def get_ou_id_by_name(ctx, ou_name):
+    '''
+    Find OU id by name (requires ListOrganizationalUnitsForParent)
+    '''
+    organizations_client = ctx.session.client('organizations')
+
+    parent_id = get_organizational_root(ctx)
+
+    for page in organizations_client.get_paginator('list_organizational_units_for_parent').paginate(
+            ParentId = parent_id
+    ):
+        for item in page['OrganizationalUnits']:
+            if (item['Name'] == ou_name):
+                return item['Id']
+
+    return None
+
+
+def get_ou_name_by_id(ctx, ou_id):
+    '''
+    Find OU name by id (requires ListOrganizationalUnitsForParent)
+    '''
+    organizations_client = ctx.session.client('organizations')
+
+    parent_id = get_organizational_root(ctx)
+
+    for page in organizations_client.get_paginator('list_organizational_units_for_parent').paginate(
+            ParentId = parent_id
+    ):
+        for item in page['OrganizationalUnits']:
+            if (item['Id'] == ou_id):
+                return item['Name']
+
+    return None
+
+
+def get_ou_name_by_arn(ctx, ou_arn):
+    '''
+    Find OU name by Arn (requires ListOrganizationalUnitsForParent)
+    '''
+    organizations_client = ctx.session.client('organizations')
+
+    parent_id = get_organizational_root(ctx)
+
+    for page in organizations_client.get_paginator('list_organizational_units_for_parent').paginate(
+            ParentId = parent_id
+    ):
+        for item in page['OrganizationalUnits']:
+            if (item['Arn'] == ou_arn):
+                return item['Name']
+
+    return None
+
+
+def get_user_id_by_name(ctx, user_name):
+
+    try:
+        identitystore_client = ctx.session.client('identitystore')
+
+        response = identitystore_client.get_user_id (
+            IdentityStoreId = ctx.identitystore_id,
+            AlternateIdentifier = {
+                'UniqueAttribute': {
+                    'AttributePath': 'userName',
+                    'AttributeValue': user_name
+                }
+            }
+        )
+        return(response['UserId'])
+
+    except:
+        return None
+
+
+def get_user_name_by_id(ctx, user_id):
+
+    try:
+        identitystore_client = ctx.session.client('identitystore')
+
+        response = identitystore_client.describe_user (
+            IdentityStoreId = ctx.identitystore_id,
+            UserId = user_id
+        )
+        return(response['UserName'])
+
+    except:
+        return None
+
+
+def get_group_id_by_name(ctx, group_name):
+
+    try:
+        identitystore_client = ctx.session.client('identitystore')
+
+        response = identitystore_client.get_group_id (
+            IdentityStoreId = ctx.identitystore_id,
+            AlternateIdentifier = {
+                'UniqueAttribute': {
+                    'AttributePath': 'displayName',
+                    'AttributeValue': group_name
+                }
+            }
+        )
+        return(response['GroupId'])
+
+    except:
+        return None
+
+
+def get_group_name_by_id(ctx, group_id):
+
+    try:
+        identitystore_client = ctx.session.client('identitystore')
+
+        response = identitystore_client.describe_group (
+            IdentityStoreId = ctx.identitystore_id,
+            GroupId = group_id
+        )
+        return(response['DisplayName'])
+
+    except:
+        return None
 
 
 def get_permission_set_desc_by_name(ctx, ps_name):
@@ -206,76 +349,6 @@ def get_tti_name_by_arn(ctx, tti_arn):
         return None
 
 
-def get_group_id_by_name(ctx, group_name):
-
-    try:
-        identitystore_client = ctx.session.client('identitystore')
-
-        response = identitystore_client.get_group_id (
-            IdentityStoreId = ctx.identitystore_id,
-            AlternateIdentifier = {
-                'UniqueAttribute': {
-                    'AttributePath': 'displayName',
-                    'AttributeValue': group_name
-                }
-            }
-        )
-        return(response['GroupId'])
-
-    except:
-        return None
-
-
-def get_group_name_by_id(ctx, group_id):
-
-    try:
-        identitystore_client = ctx.session.client('identitystore')
-
-        response = identitystore_client.describe_group (
-            IdentityStoreId = ctx.identitystore_id,
-            GroupId = group_id
-        )
-        return(response['DisplayName'])
-
-    except:
-        return None
-
-
-def get_user_id_by_name(ctx, user_name):
-
-    try:
-        identitystore_client = ctx.session.client('identitystore')
-
-        response = identitystore_client.get_user_id (
-            IdentityStoreId = ctx.identitystore_id,
-            AlternateIdentifier = {
-                'UniqueAttribute': {
-                    'AttributePath': 'userName',
-                    'AttributeValue': user_name
-                }
-            }
-        )
-        return(response['UserId'])
-
-    except:
-        return None
-
-
-def get_user_name_by_id(ctx, user_id):
-
-    try:
-        identitystore_client = ctx.session.client('identitystore')
-
-        response = identitystore_client.describe_user (
-            IdentityStoreId = ctx.identitystore_id,
-            UserId = user_id
-        )
-        return(response['UserName'])
-
-    except:
-        return None
-
-
 def get_group_memberships_for_user(ctx, user_id):
 
     identitystore_client = ctx.session.client('identitystore')
@@ -332,16 +405,18 @@ def run():
     cmds_usage = '''\nAvailable commands:
     test-funcs
     lookup-account-name
-    lookup-user-name
-    lookup-group-name
-    lookup-ps-name
-    lookup-app-name
-    lookup-tti-name
     lookup-account-id
+    lookup-ou-name
+    lookup-ou-id
+    lookup-user-name
     lookup-user-id
+    lookup-group-name
     lookup-group-id
+    lookup-ps-name
     lookup-ps-arn
+    lookup-app-name
     lookup-app-arn
+    lookup-tti-name
     lookup-tti-arn
     '''.rstrip()
 
@@ -355,26 +430,32 @@ def run():
                       help='AWS region to use')
     parser.add_option('--acct-id', dest='acct_id', default=None,
                       help='Account ID')
-    parser.add_option('--user-id', dest='user_id', default=None,
-                      help='User ID')
-    parser.add_option('--group-id', dest='group_id', default=None,
-                      help='Group ID')
-    parser.add_option('--ps-arn', dest='ps_arn', default=None,
-                      help='Permission Set Arn')
-    parser.add_option('--app-arn', dest='app_arn', default=None,
-                      help='Trusted token issuer Arn')
-    parser.add_option('--tti-arn', dest='tti_arn', default=None,
-                      help='Application Arn')
     parser.add_option('--acct-name', dest='acct_name', default=None,
                       help='Account name')
+    parser.add_option('--ou-id', dest='ou_id', default=None,
+                      help='OU ID')
+    parser.add_option('--ou-arn', dest='ou_arn', default=None,
+                      help='OU Arn')
+    parser.add_option('--ou-name', dest='ou_name', default=None,
+                      help='OU name')
+    parser.add_option('--user-id', dest='user_id', default=None,
+                      help='User ID')
     parser.add_option('--user-name', dest='user_name', default=None,
                       help='User name')
+    parser.add_option('--group-id', dest='group_id', default=None,
+                      help='Group ID')
     parser.add_option('--group-name', dest='group_name', default=None,
                       help='Group name')
+    parser.add_option('--ps-arn', dest='ps_arn', default=None,
+                      help='Permission Set Arn')
     parser.add_option('--ps-name', dest='ps_name', default=None,
                       help='Permission Set name')
+    parser.add_option('--app-arn', dest='app_arn', default=None,
+                      help='Trusted token issuer Arn')
     parser.add_option('--app-name', dest='app_name', default=None,
                       help='Application name')
+    parser.add_option('--tti-arn', dest='tti_arn', default=None,
+                      help='Application Arn')
     parser.add_option('--tti-name', dest='tti_name', default=None,
                       help='Trusted token issuer name')
 
@@ -385,34 +466,24 @@ def run():
             print('No account specified; use --acct-id.')
             exit(1)
 
-    def need_user_id():
-        if options.user_id == None:
-            print('No id specified; use --user-id.')
-            exit(1)
-
-    def need_group_id():
-        if options.group_id == None:
-            print('No group specified; use --group-id.')
-            exit(1)
-
-    def need_ps_arn():
-        if options.ps_arn == None:
-            print('No permission set Arn specified; use --ps-arn.')
-            exit(1)
-
-    def need_app_arn():
-        if options.app_arn == None:
-            print('No appliction Arn specified; use --app-arn.')
-            exit(1)
-
-    def need_tti_arn():
-        if options.tti_arn == None:
-            print('No TTI Arn specified; use --tti-arn.')
-            exit(1)
-
     def need_account_name():
         if options.acct_name == None:
             print('No account specified; use --acct-name.')
+            exit(1)
+
+    def need_ou_id_or_arn():
+        if (options.ou_id == None and options.ou_arn == None):
+            print('No OU specified; use one of: --ou_id, --ou-arn.')
+            exit(1)
+
+    def need_ou_name():
+        if options.ou_name == None:
+            print('No organizational unit specified; use --ou-name.')
+            exit(1)
+
+    def need_user_id():
+        if options.user_id == None:
+            print('No id specified; use --user-id.')
             exit(1)
 
     def need_user_name():
@@ -420,9 +491,19 @@ def run():
             print('No user specified; use --user-name.')
             exit(1)
 
+    def need_group_id():
+        if options.group_id == None:
+            print('No group specified; use --group-id.')
+            exit(1)
+
     def need_group_name():
         if options.group_name == None:
             print('No group specified; use --group-name.')
+            exit(1)
+
+    def need_ps_arn():
+        if options.ps_arn == None:
+            print('No permission set Arn specified; use --ps-arn.')
             exit(1)
 
     def need_ps_name():
@@ -430,9 +511,19 @@ def run():
             print('No permission set specified; use --ps-name.')
             exit(1)
 
+    def need_app_arn():
+        if options.app_arn == None:
+            print('No appliction Arn specified; use --app-arn.')
+            exit(1)
+
     def need_app_name():
         if options.app_name == None:
             print('No appliction specified; use --app-name.')
+            exit(1)
+
+    def need_tti_arn():
+        if options.tti_arn == None:
+            print('No TTI Arn specified; use --tti-arn.')
             exit(1)
 
     def need_tti_name():
@@ -455,35 +546,41 @@ def run():
         elif op == 'lookup-account-name':
             need_account_id()
             operation = op
-        elif op == 'lookup-user-name':
-            need_user_id()
-            operation = op
-        elif op == 'lookup-group-name':
-            need_group_id()
-            operation = op
-        elif op == 'lookup-ps-name':
-            need_ps_arn()
-            operation = op
-        elif op == 'lookup-app-name':
-            need_app_arn()
-            operation = op
-        elif op == 'lookup-tti-name':
-            need_tti_arn()
-            operation = op
         elif op == 'lookup-account-id':
             need_account_name()
+            operation = op
+        elif op == 'lookup-ou-name':
+            need_ou_id_or_arn()
+            operation = op
+        elif op == 'lookup-ou-id':
+            need_ou_name()
+            operation = op
+        elif op == 'lookup-user-name':
+            need_user_id()
             operation = op
         elif op == 'lookup-user-id':
             need_user_name()
             operation = op
+        elif op == 'lookup-group-name':
+            need_group_id()
+            operation = op
         elif op == 'lookup-group-id':
             need_group_name()
+            operation = op
+        elif op == 'lookup-ps-name':
+            need_ps_arn()
             operation = op
         elif op == 'lookup-ps-arn':
             need_ps_name()
             operation = op
+        elif op == 'lookup-app-name':
+            need_app_arn()
+            operation = op
         elif op == 'lookup-app-arn':
             need_app_name()
+            operation = op
+        elif op == 'lookup-tti-name':
+            need_tti_arn()
             operation = op
         elif op == 'lookup-tti-arn':
             need_tti_name()
@@ -508,15 +605,15 @@ def run():
         if operation == 'test-funcs':
 
             # Simple test-assertions
-            print('\nLooking up Permission Set \"%s\": %s' % (options.ps_name, "Success." if (options.ps_name ==
+            print('\nLooking up Permission Set "%s": %s' % (options.ps_name, "Success." if (options.ps_name ==
                   get_permission_set_name_by_arn(ctx, get_permission_set_arn_by_name(ctx, options.ps_name))) else "Failed."))
-            print('Looking up Application \"%s\": %s' % (options.app_name, "Success." if (options.app_name ==
+            print('Looking up Application "%s": %s' % (options.app_name, "Success." if (options.app_name ==
                   get_application_name_by_arn(ctx, get_application_arn_by_name(ctx, options.app_name))) else "Failed."))
-            print('Looking up TTI \"%s\": %s' % (options.tti_name, "Success." if (options.tti_name ==
+            print('Looking up TTI "%s": %s' % (options.tti_name, "Success." if (options.tti_name ==
                   get_tti_name_by_arn(ctx, get_tti_arn_by_name(ctx, options.tti_name))) else "Failed."))
-            print('Looking up Group \"%s\": %s' % (options.group_name, "Success." if (options.group_name ==
+            print('Looking up Group "%s": %s' % (options.group_name, "Success." if (options.group_name ==
                   get_group_name_by_id(ctx, get_group_id_by_name(ctx, options.group_name))) else "Failed."))
-            print('Looking up User \"%s\": %s' % (options.user_name, "Success." if (options.user_name ==
+            print('Looking up User "%s": %s' % (options.user_name, "Success." if (options.user_name ==
                   get_user_name_by_id(ctx, get_user_id_by_name(ctx, options.user_name))) else "Failed."))
 
             print("DONE.\n")
@@ -527,106 +624,143 @@ def run():
 
             acct_name = get_acct_name_by_id(ctx, options.acct_id)
             if acct_name == None:
-                print('Account id \"%s\" not found.' % options.acct_id)
+                print('Account id "%s" not found.' % options.acct_id)
             else:
                 print(acct_name)
-
-
-        elif operation == 'lookup-user-name':
-
-            user_name = get_user_name_by_id(ctx, options.user_id)
-            if user_name == None:
-                print('User id \"%s\" not found.' % options.user_id)
-            else:
-                print(user_name)
-
-
-        elif operation == 'lookup-group-name':
-
-            group_name = get_group_name_by_id(ctx, options.group_id)
-            if group_name == None:
-                print('Group id \"%s\" not found.' % options.group_id)
-            else:
-                print(group_name)
-
-
-        elif operation == 'lookup-ps-name':
-
-            ps_name = get_permission_set_name_by_arn(ctx, options.ps_arn)
-            if ps_name == None:
-                print('Permission set Arn \"%s\" not found.' % options.ps_arn)
-            else:
-                print(ps_name)
-
-
-        elif operation == 'lookup-app-name':
-
-            app_name = get_application_name_by_arn(ctx, options.app_arn)
-            if app_name == None:
-                print('Application \"%s\" not found.' % options.app_arn)
-            else:
-                print(app_name)
-
-
-        elif operation == 'lookup-tti-name':
-
-            tti_name = get_tti_name_by_arn(ctx, options.tti_arn)
-            if tti_name == None:
-                print('TTI \"%s\" not found.' % options.tti_arn)
-            else:
-                print(tti_name)
 
 
         elif operation == 'lookup-account-id':
 
             acct_id = get_acct_id_by_name(ctx, options.acct_name)
             if acct_id == None:
-                print('Account name \"%s\" not found.' % options.acct_name)
+                print('Account name "%s" not found.' % options.acct_name)
             else:
                 print(acct_id)
+
+
+        elif operation == 'lookup-ou-name':
+
+            if options.ou_id != None:
+                ou_name = get_ou_name_by_id(ctx, options.ou_id)
+                if ou_name == None:
+                    # raise SystemExit('Permission set "%s" not found.' % options.ou_id)
+                    print('OU id "%s" not found.' % options.ou_id)
+                else:
+                    print(ou_name)
+
+            elif options.ou_arn != None:
+                ou_name = get_ou_name_by_arn(ctx, options.ou_arn)
+                if ou_name == None:
+                    # raise SystemExit('Permission set "%s" not found.' % options.ou_id)
+                    print('OU Arn "%s" not found.' % options.ou_arn)
+                else:
+                    print(ou_name)
+
+
+        # elif operation == 'lookup-ou-name':
+        #
+        #     ou_name = get_ou_name_by_id(ctx, options.ou_id)
+        #     if ou_name == None:
+        #         print('Account id "%s" not found.' % options.ou_id)
+        #     else:
+        #         print(ou_name)
+
+
+        elif operation == 'lookup-ou-id':
+
+            ou_id = get_ou_id_by_name(ctx, options.ou_name)
+            if ou_id == None:
+                print('OU name "%s" not found.' % options.ou_name)
+            else:
+                print(ou_id)
+
+
+        elif operation == 'lookup-user-name':
+
+            user_name = get_user_name_by_id(ctx, options.user_id)
+            if user_name == None:
+                print('User id "%s" not found.' % options.user_id)
+            else:
+                print(user_name)
 
 
         elif operation == 'lookup-user-id':
 
             user_id = get_user_id_by_name(ctx, options.user_name)
             if user_id == None:
-                print('User name \"%s\" not found.' % options.user_name)
+                print('User name "%s" not found.' % options.user_name)
             else:
                 print(user_id)
+
+
+        elif operation == 'lookup-group-name':
+
+            group_name = get_group_name_by_id(ctx, options.group_id)
+            if group_name == None:
+                print('Group id "%s" not found.' % options.group_id)
+            else:
+                print(group_name)
 
 
         elif operation == 'lookup-group-id':
 
             group_id = get_group_id_by_name(ctx, options.group_name)
             if group_id == None:
-                print('Group name \"%s\" not found.' % options.group_name)
+                print('Group name "%s" not found.' % options.group_name)
             else:
                 print(group_id)
+
+
+        elif operation == 'lookup-ps-name':
+
+            ps_name = get_permission_set_name_by_arn(ctx, options.ps_arn)
+            if ps_name == None:
+                print('Permission set Arn "%s" not found.' % options.ps_arn)
+            else:
+                print(ps_name)
 
 
         elif operation == 'lookup-ps-arn':
 
             ps_arn = get_permission_set_arn_by_name(ctx, options.ps_name)
             if ps_arn == None:
-                print('Permission set name \"%s\" not found.' % options.ps_name)
+                print('Permission set name "%s" not found.' % options.ps_name)
             else:
                 print(ps_arn)
+
+
+        elif operation == 'lookup-app-name':
+
+            app_name = get_application_name_by_arn(ctx, options.app_arn)
+            if app_name == None:
+                print('Application "%s" not found.' % options.app_arn)
+            else:
+                print(app_name)
 
 
         elif operation == 'lookup-app-arn':
 
             app_arn = get_application_arn_by_name(ctx, options.app_name)
             if app_arn == None:
-                print('Application name \"%s\" not found.' % options.app_name)
+                print('Application name "%s" not found.' % options.app_name)
             else:
                 print(app_arn)
+
+
+        elif operation == 'lookup-tti-name':
+
+            tti_name = get_tti_name_by_arn(ctx, options.tti_arn)
+            if tti_name == None:
+                print('TTI "%s" not found.' % options.tti_arn)
+            else:
+                print(tti_name)
 
 
         elif operation == 'lookup-tti-arn':
 
             tti_arn = get_tti_arn_by_name(ctx, options.tti_name)
             if tti_arn == None:
-                print('TTI name \"%s\" not found.' % options.tti_name)
+                print('TTI name "%s" not found.' % options.tti_name)
             else:
                 print(tti_arn)
 

@@ -147,7 +147,7 @@ aws-sso-admin list-all-ps-assignments-in-account --acct-id 123456789012
 aws-sso-admin list-all-ps-assignments-in-ou --ou-name "IT"
 aws-sso-admin list-all-ps-assignments-in-ou --ou-name "Sandbox"
 
-aws-sso-admin verify-access-for-user --user-name "ima.user@my.org --ps-name "App1_Deployer" --acct-id 123456789012
+aws-sso-admin verify-access-for-user --user-name "ima.user@my.org" --ps-name "App1_Deployer" --acct-id 123456789012
 ```
 
 ## Application management operations
