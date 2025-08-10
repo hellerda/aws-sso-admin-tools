@@ -55,8 +55,12 @@ def run():
                       help='AWS profile to use')
     parser.add_option('--region', dest='region', default=None,
                       help='AWS region to use')
+    parser.add_option('--user-id', dest='user_id', default=None,
+                      help='User ID')
     parser.add_option('--user-name', dest='user_name', default=None,
                       help='User name')
+    parser.add_option('--group-id', dest='group_id', default=None,
+                      help='Group ID')
     parser.add_option('--group-name', dest='group_name', default=None,
                       help='Group name')
     parser.add_option('--group-desc', dest='group_desc', default=None,
@@ -77,6 +81,16 @@ def run():
             print('No group specified; use --group-name.')
             exit(1)
 
+    def need_user_id_or_name():
+        if (options.user_id == None and options.user_name == None):
+            print('No account specified; use one of: --user-id, --user-name.')
+            exit(1)
+
+    def need_group_id_or_name():
+        if (options.group_id == None and options.group_name == None):
+            print('No account specified; use one of: --group-id, --group-name.')
+            exit(1)
+
     operation = None
 
     if len(args) > 0:
@@ -88,7 +102,7 @@ def run():
             need_group_name()
             operation = op
         elif op == 'describe-group':
-            need_group_name()
+            need_group_id_or_name()
             operation = op
         elif op == 'list-groups':
             operation = op
@@ -184,14 +198,17 @@ def run():
 
         elif operation == 'describe-group' or operation == 'delete-group':
 
-            group_id = get_group_id_by_name(ctx, options.group_name)
-            if group_id == None:
-                print('Group \'%s\' not found.' % options.group_name)
-                exit(1)
+            if options.group_id == None:
+                group_id = get_group_id_by_name(ctx, options.group_name)
+                if group_id == None:
+                    print('Group "%s" not found.' % options.group_name)
+                    exit(1)
+            else:
+                group_id = options.group_id
 
             try:
                 if operation == 'delete-group':
-                    print('Deleting Group: \"%s\" with ID: %s' % (options.group_name, group_id))
+                    print('Deleting Group: "%s" with ID: %s' % (options.group_name, group_id))
                     response = identitystore_client.delete_group (
                         IdentityStoreId = identitystore_id,
                         GroupId = group_id
@@ -218,7 +235,7 @@ def run():
                 groups = []
 
                 for page in paginator.paginate(IdentityStoreId = identitystore_id):
-                    for group in page["Groups"]:
+                    for group in page['Groups']:
                         groups.append(group)
 
                         if options.json_only != True:

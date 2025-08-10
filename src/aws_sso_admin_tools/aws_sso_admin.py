@@ -37,14 +37,20 @@ def run():
 
     cmds_usage = '''\nAvailable commands:
   Simple lookup operations:
+    lookup-account-name
+    lookup-account-id
+    lookup-ou-name
+    lookup-ou-id
     lookup-user-name
-    lookup-group-name
-    lookup-ps-name
-    lookup-app-name
     lookup-user-id
+    lookup-group-name
     lookup-group-id
+    lookup-ps-name
     lookup-ps-arn
+    lookup-app-name
     lookup-app-arn
+    lookup-tti-name
+    lookup-tti-arn
 
   User and Group operations:
     create-group
@@ -91,6 +97,8 @@ def run():
     list-assigned-principals-for-ps-in-account
     list-accounts-for-provisioned-ps
     list-all-acct-assignments-for-provisioned-ps
+    list-all-acct-assignments-for-user
+    list-all-acct-assignments-for-group
     list-all-acct-assignments-for-principal
     list-all-acct-assignments-for-ps-in-org
     list-all-ps-in-org
@@ -125,25 +133,29 @@ def run():
         # Simple lookup operations...
         elif op == 'lookup-account-name':
             funcs.run()
-        elif op == 'lookup-user-name':
-            funcs.run()
-        elif op == 'lookup-group-name':
-            funcs.run()
-        elif op == 'lookup-ps-name':
-            funcs.run()
-        elif op == 'lookup-app-name':
-            funcs.run()
-        elif op == 'lookup-tti-name':
-            funcs.run()
         elif op == 'lookup-account-id':
+            funcs.run()
+        elif op == 'lookup-ou-name':
+            funcs.run()
+        elif op == 'lookup-ou-id':
+            funcs.run()
+        elif op == 'lookup-user-name':
             funcs.run()
         elif op == 'lookup-user-id':
             funcs.run()
+        elif op == 'lookup-group-name':
+            funcs.run()
         elif op == 'lookup-group-id':
+            funcs.run()
+        elif op == 'lookup-ps-name':
             funcs.run()
         elif op == 'lookup-ps-arn':
             funcs.run()
+        elif op == 'lookup-app-name':
+            funcs.run()
         elif op == 'lookup-app-arn':
+            funcs.run()
+        elif op == 'lookup-tti-name':
             funcs.run()
         elif op == 'lookup-tti-arn':
             funcs.run()
