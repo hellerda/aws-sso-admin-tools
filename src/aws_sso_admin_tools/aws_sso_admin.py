@@ -41,6 +41,7 @@ def run():
     lookup-account-id
     lookup-ou-name
     lookup-ou-id
+    lookup-ou-arn
     lookup-user-name
     lookup-user-id
     lookup-group-name
@@ -104,6 +105,7 @@ def run():
     list-all-ps-in-org
     list-all-ps-assignments-in-account
     list-all-ps-assignments-in-ou
+    list-all-accounts-in-ou
     verify-access-for-user
 
   Application management operations:
@@ -138,6 +140,8 @@ def run():
         elif op == 'lookup-ou-name':
             funcs.run()
         elif op == 'lookup-ou-id':
+            funcs.run()
+        elif op == 'lookup-ou-arn':
             funcs.run()
         elif op == 'lookup-user-name':
             funcs.run()
@@ -262,6 +266,8 @@ def run():
         elif op == 'list-all-ps-assignments-in-account':
             manage_account_assignments.run()
         elif op == 'list-all-ps-assignments-in-ou':
+            manage_account_assignments.run()
+        elif op == 'list-all-accounts-in-ou':
             manage_account_assignments.run()
         elif op == 'verify-access-for-user':
             manage_account_assignments.run()

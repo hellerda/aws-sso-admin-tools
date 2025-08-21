@@ -41,6 +41,7 @@ def get_sso_instance(ctx):
 def get_organizational_root(ctx):
     '''
     Get organizational root (requires ListRoots permission)
+    Returns dict with Name, RootId, OrgId, MgmtAcctId, Arn
     '''
     organizations_client = ctx.session.client('organizations')
 
@@ -48,7 +49,19 @@ def get_organizational_root(ctx):
         for page in organizations_client.get_paginator('list_roots').paginate():
             for item in page['Roots']:
                 if (item['Name'] == 'Root'):
-                    return item['Id']
+                    # Parse ARN: arn:aws:organizations::123456789012:root/o-abcdefghij/r-abcd
+                    arn_parts = item['Arn'].split('/')
+                    org_id = arn_parts[-2]
+                    root_id = arn_parts[-1]
+                    mgmt_acct_id = item['Arn'].split(':')[4]
+
+                    return {
+                        'Name': item['Name'],
+                        'RootId': root_id,
+                        'OrgId': org_id,
+                        'MgmtAcctId': mgmt_acct_id,
+                        'Arn': item['Arn']
+                    }
 
         raise ValueError('Organizational root not found.')
 
@@ -111,56 +124,65 @@ def get_acct_name_by_id(ctx, acct_id):
 
 def get_ou_id_by_name(ctx, ou_name):
     '''
-    Find OU id by name (requires ListOrganizationalUnitsForParent)
+    Find OU id by name (searches entire hierarchy)
     '''
     organizations_client = ctx.session.client('organizations')
 
-    parent_id = get_organizational_root(ctx)
+    def search_recursive(parent_id):
+        for page in organizations_client.get_paginator('list_organizational_units_for_parent').paginate(
+                ParentId = parent_id
+        ):
+            for item in page['OrganizationalUnits']:
+                if item['Name'] == ou_name:
+                    return item['Id']
+                result = search_recursive(item['Id'])
+                if result:
+                    return result
+        return None
 
-    for page in organizations_client.get_paginator('list_organizational_units_for_parent').paginate(
-            ParentId = parent_id
-    ):
-        for item in page['OrganizationalUnits']:
-            if (item['Name'] == ou_name):
-                return item['Id']
+    return search_recursive(get_organizational_root(ctx)['RootId'])
 
-    return None
+
+def get_ou_arn_by_name(ctx, ou_name):
+    '''
+    Find OU Arn by name (searches entire hierarchy)
+    '''
+    organizations_client = ctx.session.client('organizations')
+
+    def search_recursive(parent_id):
+        for page in organizations_client.get_paginator('list_organizational_units_for_parent').paginate(
+                ParentId = parent_id
+        ):
+            for item in page['OrganizationalUnits']:
+                if item['Name'] == ou_name:
+                    return item['Arn']
+                result = search_recursive(item['Id'])
+                if result:
+                    return result
+        return None
+
+    return search_recursive(get_organizational_root(ctx)['RootId'])
 
 
 def get_ou_name_by_id(ctx, ou_id):
     '''
-    Find OU name by id (requires ListOrganizationalUnitsForParent)
+    Find OU name by id (searches entire hierarchy)
     '''
     organizations_client = ctx.session.client('organizations')
 
-    parent_id = get_organizational_root(ctx)
+    def search_recursive(parent_id):
+        for page in organizations_client.get_paginator('list_organizational_units_for_parent').paginate(
+                ParentId = parent_id
+        ):
+            for item in page['OrganizationalUnits']:
+                if item['Id'] == ou_id:
+                    return item['Name']
+                result = search_recursive(item['Id'])
+                if result:
+                    return result
+        return None
 
-    for page in organizations_client.get_paginator('list_organizational_units_for_parent').paginate(
-            ParentId = parent_id
-    ):
-        for item in page['OrganizationalUnits']:
-            if (item['Id'] == ou_id):
-                return item['Name']
-
-    return None
-
-
-def get_ou_name_by_arn(ctx, ou_arn):
-    '''
-    Find OU name by Arn (requires ListOrganizationalUnitsForParent)
-    '''
-    organizations_client = ctx.session.client('organizations')
-
-    parent_id = get_organizational_root(ctx)
-
-    for page in organizations_client.get_paginator('list_organizational_units_for_parent').paginate(
-            ParentId = parent_id
-    ):
-        for item in page['OrganizationalUnits']:
-            if (item['Arn'] == ou_arn):
-                return item['Name']
-
-    return None
+    return search_recursive(get_organizational_root(ctx)['RootId'])
 
 
 def get_user_id_by_name(ctx, user_name):
@@ -408,6 +430,7 @@ def run():
     lookup-account-id
     lookup-ou-name
     lookup-ou-id
+    lookup-ou-arn
     lookup-user-name
     lookup-user-id
     lookup-group-name
@@ -434,8 +457,6 @@ def run():
                       help='Account name')
     parser.add_option('--ou-id', dest='ou_id', default=None,
                       help='OU ID')
-    parser.add_option('--ou-arn', dest='ou_arn', default=None,
-                      help='OU Arn')
     parser.add_option('--ou-name', dest='ou_name', default=None,
                       help='OU name')
     parser.add_option('--user-id', dest='user_id', default=None,
@@ -471,9 +492,9 @@ def run():
             print('No account specified; use --acct-name.')
             exit(1)
 
-    def need_ou_id_or_arn():
-        if (options.ou_id == None and options.ou_arn == None):
-            print('No OU specified; use one of: --ou_id, --ou-arn.')
+    def need_ou_id():
+        if (options.ou_id == None):
+            print('No OU specified; use --ou_id.')
             exit(1)
 
     def need_ou_name():
@@ -550,9 +571,12 @@ def run():
             need_account_name()
             operation = op
         elif op == 'lookup-ou-name':
-            need_ou_id_or_arn()
+            need_ou_id()
             operation = op
         elif op == 'lookup-ou-id':
+            need_ou_name()
+            operation = op
+        elif op == 'lookup-ou-arn':
             need_ou_name()
             operation = op
         elif op == 'lookup-user-name':
@@ -640,39 +664,51 @@ def run():
 
         elif operation == 'lookup-ou-name':
 
-            if options.ou_id != None:
+            if options.ou_id.startswith('o-'):
+                # User passed an Org ID
+                current_org = get_organizational_root(ctx)
+                if current_org['OrgId'] != options.ou_id:
+                    raise ValueError('Org ID is not from the current organization')
+                ou_name = 'Root'
+                print(ou_name)
+
+            elif options.ou_id.startswith('ou-'):
+                # User passed an OU ID
                 ou_name = get_ou_name_by_id(ctx, options.ou_id)
                 if ou_name == None:
-                    # raise SystemExit('Permission set "%s" not found.' % options.ou_id)
                     print('OU id "%s" not found.' % options.ou_id)
                 else:
                     print(ou_name)
-
-            elif options.ou_arn != None:
-                ou_name = get_ou_name_by_arn(ctx, options.ou_arn)
-                if ou_name == None:
-                    # raise SystemExit('Permission set "%s" not found.' % options.ou_id)
-                    print('OU Arn "%s" not found.' % options.ou_arn)
-                else:
-                    print(ou_name)
-
-
-        # elif operation == 'lookup-ou-name':
-        #
-        #     ou_name = get_ou_name_by_id(ctx, options.ou_id)
-        #     if ou_name == None:
-        #         print('Account id "%s" not found.' % options.ou_id)
-        #     else:
-        #         print(ou_name)
+            else:
+                raise ValueError('Invalid OU or Org ID.')
 
 
         elif operation == 'lookup-ou-id':
 
-            ou_id = get_ou_id_by_name(ctx, options.ou_name)
+            if options.ou_name == 'Root':
+                # This is really an Org name, so return current Org ID
+                ou_id = get_organizational_root(ctx)['OrgId']
+            else:
+                ou_id = get_ou_id_by_name(ctx, options.ou_name)
+
             if ou_id == None:
                 print('OU name "%s" not found.' % options.ou_name)
             else:
                 print(ou_id)
+
+
+        elif operation == 'lookup-ou-arn':
+
+            if options.ou_name == 'Root':
+                # This is really an Org name, so return current Org ID
+                ou_arn = get_organizational_root(ctx)['Arn']
+            else:
+                ou_arn = get_ou_arn_by_name(ctx, options.ou_name)
+
+            if ou_arn == None:
+                print('OU Arn "%s" not found.' % options.ou_name)
+            else:
+                print(ou_arn)
 
 
         elif operation == 'lookup-user-name':
