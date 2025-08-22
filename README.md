@@ -21,7 +21,7 @@ The program supports most operations you can do via the AWS management console o
 $ pip install setuptools build
 $ cd <project directory>
 $ python -m build
-$ pip install ./dist/aws_sso_admin_tools-0.1.0-py3-none-any.whl
+$ pipx install ./dist/aws_sso_admin_tools-0.1.0-py3-none-any.whl
 ```
 
 You will now have the ```aws-sso-admin``` executable installed.  If not found, run ```pip show aws-sso-admin-tools``` and check the installed "Location".  The executable should be installed in the ```./bin``` directory that is the peer of the displayed ```./lib``` directory.  Make sure this directory is in your path.
@@ -54,6 +54,17 @@ aws-sso-admin lookup-group-name --group-id "22222222-2222-2222-2222-222222222222
 aws-sso-admin lookup-ps-name --ps-arn "arn:aws:sso:::permissionSet/ssoins-abcdef1234567890/ps-1234567890123456"
 aws-sso-admin lookup-app-name --app-arn "arn:aws:sso::123456789012:application/ssoins-abcdef1234567890/apl-a1b2c3d4e5f67890"
 aws-sso-admin lookup-account-name --acct-id 123456789012
+
+aws-sso-admin lookup-ou-id --ou-name "Root"
+aws-sso-admin lookup-ou-id --ou-name "MyChildOU"
+aws-sso-admin lookup-ou-id --ou-name "MyGrandChildOU"
+
+aws-sso-admin lookup-ou-id --ou-arn "Root"
+aws-sso-admin lookup-ou-id --ou-arn "MyChildOU"
+aws-sso-admin lookup-ou-id --ou-arn "MyGrandChildOU"
+
+aws-sso-admin lookup-ou-name --ou-id "o-abcde12345"
+aws-sso-admin lookup-ou-name --ou-id "ou-w0yz-abcd1234"
 ```
 
 ## User and Group operations
@@ -150,8 +161,21 @@ aws-sso-admin list-all-ps-assignments-in-ou --ou-name "Sandbox"
 aws-sso-admin verify-access-for-user --user-name "ima.user@my.org" --ps-name "App1_Deployer" --acct-id 123456789012
 ```
 
-## Application management operations
+## Organization and OU operations
 
+Displays all OUs and accounts below the provided root.  Accepts Org or OU identifier, but identifier can only refer to the current org.  Use `--ou-name "Root"` to see the full Org.
+
+Displays current level only by default: use `--ou-tree` to see all OUs, use `--full-tree` to see all accounts.  Use `--ascii` for ASCII-only output.
+```
+aws-sso-admin list-all-accounts-in-ou --ou-name "Root"
+aws-sso-admin list-all-accounts-in-ou --ou-name "MyChildOU"
+aws-sso-admin list-all-accounts-in-ou --ou-name "MyGrandChildOU"
+
+aws-sso-admin list-all-accounts-in-ou --ou-id "o-abcde12345"
+aws-sso-admin list-all-accounts-in-ou --ou-id "ou-w0yz-abcd1234"
+```
+
+## Application management operations
 ```
 aws-sso-admin list-ttis
 aws-sso-admin describe-tti --tti-name "My-TrustedTokenIssuer"

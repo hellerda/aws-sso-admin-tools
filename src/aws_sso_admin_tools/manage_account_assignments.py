@@ -92,6 +92,141 @@ def get_accounts_for_provisioned_permission_set(ctx, ps_arn):
         exit(1)
 
 
+def list_accounts_and_ous_in_parent(ctx, parent_id):
+    '''
+    List all accounts and child OUs in a parent (OU or Root)
+    Returns tuple of (accounts_list, ous_list)
+    '''
+    organizations_client = ctx.session.client('organizations')
+
+    accounts = []
+    ous = []
+
+    try:
+        # Get accounts
+        paginator = organizations_client.get_paginator('list_accounts_for_parent')
+        for page in paginator.paginate(ParentId=parent_id):
+            for acct in page['Accounts']:
+                accounts.append({
+                    'Name': acct['Name'],
+                    'Id': acct['Id'],
+                    'JoinedTimestamp': acct['JoinedTimestamp'],
+                    'Email': acct['Email']
+                })
+
+        # Get child OUs
+        paginator = organizations_client.get_paginator('list_organizational_units_for_parent')
+        for page in paginator.paginate(ParentId=parent_id):
+            for ou in page['OrganizationalUnits']:
+                ous.append({
+                    'Name': ou['Name'],
+                    'Id': ou['Id'],
+                    'Arn': ou['Arn']
+                })
+
+        return accounts, ous
+
+    except organizations_client.exceptions.ParentNotFoundException:
+        return [], []
+
+    except Exception as e:
+        print("Error: %s" % str(e))
+        return [], []
+
+
+# Tree character generator
+gen_prefix = lambda prefix, is_last, ascii_mode: (
+    (
+        prefix + ('`-- ' if is_last else '|-- '),
+        prefix + ('    ' if is_last else '|   ')
+    ) if ascii_mode else (
+        prefix + ('└── ' if is_last else '├── '),
+        prefix + ('    ' if is_last else prefix + '│   ')
+    )
+)
+
+
+def display_org_tree_single_level(ctx, parent_id, ou_tree_only=False, ascii_mode=False):
+    '''
+    Display organizational tree for single level only
+    '''
+    accounts, ous = list_accounts_and_ous_in_parent(ctx, parent_id)
+
+    # Combine and sort all items
+    all_items = []
+
+    # Add OUs
+    for ou in sorted(ous, key=lambda x: x['Name'].lower()):
+        ou_accounts, _ = list_accounts_and_ous_in_parent(ctx, ou['Id'])
+        account_count = len(ou_accounts)
+        all_items.append(('ou', ou, account_count))
+
+    # Add accounts if not ou_tree_only
+    if not ou_tree_only:
+        for account in sorted(accounts, key=lambda x: x['Name'].lower()):
+            all_items.append(('account', account, None))
+
+    # Display items with tree characters
+    for i, (item_type, item, count) in enumerate(all_items):
+        is_last = (i == len(all_items) - 1)
+        current_prefix, _ = gen_prefix('', is_last, ascii_mode)
+
+        if item_type == 'ou':
+            print('%sOU: %s (%s) (%d)' % (current_prefix, item['Name'], item['Id'], count))
+        else:
+            print('%sAccount: %s (%s) - Email: %s - Created: %s' % (
+                current_prefix,
+                item['Name'],
+                item['Id'],
+                item['Email'],
+                str(item['JoinedTimestamp']).split()[0]
+            ))
+
+    if not all_items:
+        empty_prefix, _ = gen_prefix('', True, ascii_mode)
+        print('%sNo accounts or child OUs found.' % empty_prefix)
+
+
+def display_org_tree_recursive(ctx, parent_id, parent_name, indent_level=0, ou_tree_only=False, prefix='', ascii_mode=False):
+    '''
+    Recursively display organizational tree with accounts and OUs
+    '''
+    accounts, ous = list_accounts_and_ous_in_parent(ctx, parent_id)
+
+    # Combine and sort all items
+    all_items = []
+
+    # Add OUs
+    for ou in sorted(ous, key=lambda x: x['Name'].lower()):
+        ou_accounts, _ = list_accounts_and_ous_in_parent(ctx, ou['Id'])
+        account_count = len(ou_accounts)
+        all_items.append(('ou', ou, account_count))
+
+    # Add accounts if not ou_tree_only
+    if not ou_tree_only:
+        for account in sorted(accounts, key=lambda x: x['Name'].lower()):
+            all_items.append(('account', account, None))
+
+    # Display items with tree characters
+    for i, (item_type, item, count) in enumerate(all_items):
+        is_last = (i == len(all_items) - 1)
+        current_prefix, next_prefix = gen_prefix(prefix, is_last, ascii_mode)
+
+        if item_type == 'ou':
+            print('%sOU: %s (%s) (%d)%s' % (current_prefix,
+                  item['Name'], item['Id'], count, '' if ou_tree_only else ':'))
+            display_org_tree_recursive(
+                ctx, item['Id'], item['Name'], indent_level + 1, ou_tree_only, next_prefix, ascii_mode)
+        else:
+            print('%sAccount: %s (%s) - Email: %s - Created: %s' % (
+                current_prefix,
+                item['Name'],
+                item['Id'],
+                item['Email'],
+                str(item['JoinedTimestamp']).split()[0]
+            ))
+
+
 # ------------------------------------------------------------------------------
 # This is still a work in progress...
 # ------------------------------------------------------------------------------
@@ -155,6 +290,7 @@ def run():
     list-all-ps-in-org
     list-all-ps-assignments-in-account
     list-all-ps-assignments-in-ou
+    list-all-accounts-in-ou
     verify-access-for-user
     '''.rstrip()
 
@@ -183,7 +319,18 @@ def run():
     parser.add_option('--group-name', dest='group_name', default=None,
                       help='Group name')
     parser.add_option('--ou-name', dest='ou_name', default=None,
-                      help='OU name')
+                      help='OU name or "Root" for organization root')
+    parser.add_option('--ou-id', dest='ou_id', default=None,
+                      help='OU or Organization ID')
+    parser.add_option('--ascii', dest='ascii', default=False,
+                      action='store_true',
+                      help='Use ASCII characters only for output')
+    parser.add_option('--full-tree', dest='full_tree', default=False,
+                      action='store_true',
+                      help='Show full organizational tree recursively')
+    parser.add_option('--ou-tree', dest='ou_tree', default=False,
+                      action='store_true',
+                      help='Show only organizational units, suppress account listings')
     parser.add_option('--show-acct-names', dest='show_acct_names', default=True,
                       action='store_true',
                       help='Show account names where applicable')
@@ -314,6 +461,8 @@ def run():
             operation = op
         elif op == 'list-all-ps-assignments-in-ou':
             need_ou_name()
+            operation = op
+        elif op == 'list-all-accounts-in-ou':
             operation = op
         elif op == 'verify-access-for-user':
             need_acct_id()
@@ -936,6 +1085,67 @@ def run():
                                     print('  * %s' % arn)
 
                     list_assigned_principals_for_ps_in_account(ctx, 1, acct_id, ps_arn)
+
+
+        # --------------------------------------------------------------------------
+        # List all accounts and child OUs in an OU or Organization.
+        # --------------------------------------------------------------------------
+        elif operation == 'list-all-accounts-in-ou':
+
+            # Determine parent ID based on input type
+            parent_id = None
+            parent_display_name = ''
+            org_info = None
+
+            if options.ou_id:
+                if options.ou_id.startswith('o-'):
+                    # User passed an Org ID
+                    org_info = get_organizational_root(ctx)
+                    if org_info['OrgId'] != options.ou_id:
+                        raise ValueError('Org ID is not from the current organization')
+                    parent_id = org_info['RootId']
+                    parent_display_name = 'Root'
+                elif options.ou_id.startswith('ou-'):
+                    # User passed an OU ID
+                    parent_id = options.ou_id
+                    parent_display_name = get_ou_name_by_id(ctx, options.ou_id) or options.ou_id
+                else:
+                    raise ValueError('Invalid OU or Org ID.')
+            else:
+                if options.ou_name == 'Root':
+                    org_info = get_organizational_root(ctx)
+                    parent_id = org_info['RootId']
+                    parent_display_name = 'Root'
+                else:
+                    parent_id = get_ou_id_by_name(ctx, options.ou_name)
+                    parent_display_name = options.ou_name
+
+            # Default to organizational root if no identifier provided
+            if parent_id is None and not (options.ou_name or options.ou_id):
+                org_info = get_organizational_root(ctx)
+                parent_id = org_info['RootId']
+                parent_display_name = 'Root'
+
+            if parent_id is None:
+                raise SystemExit('Organizational Unit "%s" not found.' % (options.ou_name or options.ou_id))
+
+            if options.full_tree and options.ou_tree:
+                raise SystemExit('Options --full-tree and --ou-tree are mutually exclusive.')
+
+            # Additionally show Org Id in header where appropriate
+            org_suffix = ''
+            if org_info:
+                org_suffix = ' (%s)' % org_info['OrgId']
+
+            if options.full_tree:
+                print('Organizational tree from: %s (%s)%s:' % (parent_display_name, parent_id, org_suffix))
+                display_org_tree_recursive(ctx, parent_id, parent_display_name, 0, False, '', options.ascii)
+            elif options.ou_tree:
+                print('Organizational tree from: %s (%s)%s:' % (parent_display_name, parent_id, org_suffix))
+                display_org_tree_recursive(ctx, parent_id, parent_display_name, 0, True, '', options.ascii)
+            else:
+                print('Contents of: %s (%s)%s:' % (parent_display_name, parent_id, org_suffix))
+                display_org_tree_single_level(ctx, parent_id, False, options.ascii)
 
 
         # --------------------------------------------------------------------------
