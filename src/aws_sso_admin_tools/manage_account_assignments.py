@@ -4,7 +4,7 @@
 '''
 A simple tool for managing account assignments in AWS Identity Center.
 
-(c) Copyright Dave Heller 2024
+(c) Copyright Dave Heller 2025
 '''
 
 import json
@@ -19,6 +19,7 @@ if __package__ is None or __package__ == '' :
 else:
     from .funcs import *
 
+from botocore.exceptions import ClientError
 from optparse import OptionParser
 
 
@@ -495,6 +496,7 @@ def run():
             acct = None
             tags = {}
 
+            # Get account info
             if options.acct_name != None:
                 acct = get_acct_desc_by_name(ctx, options.acct_name)
                 if acct == None:
@@ -504,24 +506,56 @@ def run():
                 if acct == None:
                     raise SystemExit('Account "%s" not found.' % options.acct_id)
 
+            # Get org/OU info
             try:
-                organizations_client = ctx.session.client('organizations')
+                parent_ou = get_account_parent_ou(ctx, acct['Id'])
+                if parent_ou:
+                    acct['Parent'] = parent_ou
+                else:
+                    acct['Parent'] = {
+                        'Type': 'UNKNOWN', 'Name': 'Unknown', 'Id': 'Unknown', 'Arn': None}
+            except ClientError as e:
+                if e.response['Error']['Code'] == 'AccessDeniedException':
+                    acct['Parent'] = {
+                        'Type': 'ACCESS_DENIED', 'Name': 'AccessDenied', 'Id': 'AccessDenied', 'Arn': None}
+                else:
+                    raise
 
+            # Get account tags
+            try:
                 tags = organizations_client.list_tags_for_resource (
                     ResourceId = acct['Id']
                 )
-                # Append the previous data structure
-                acct['Tags'] = tags['Tags']  # append the previous data structure
-            except:
-                pass
+                acct['Tags'] = tags['Tags']
+            except ClientError as e:
+                if e.response['Error']['Code'] == 'AccessDeniedException':
+                    acct['Tags'] = [{'Key': 'NoTags', 'Value': 'AccessDenied'}]
+                else:
+                    raise
 
             if options.json_only == True:
                 print(json.dumps(acct, indent=4, sort_keys=False, default=str))
             else:
+                # Display account info
                 print('Account: %s ("%s"): email: %s %s %s on: %s' % (
                     acct['Id'], acct['Name'], acct['Email'], acct['Status'],
                     acct['JoinedMethod'], str(acct['JoinedTimestamp']).split()[0]))
-                for tag in acct.pop('Tags', []):
+
+                # Display org/OU info
+                parent = acct.get('Parent', {})
+                if parent.get('Type') == 'ROOT':
+                    print('- Parent: Organizational root %s (%s) - (%s)' %
+                          (parent['Name'], parent['Id'], parent['Arn']))
+                elif parent.get('Type') == 'ORGANIZATIONAL_UNIT':
+                    print('- Parent: OU "%s" (%s) - (%s)' %
+                          (parent['Name'], parent['Id'], parent['Arn']))
+                elif parent.get('Type') == 'ACCESS_DENIED':
+                    print('- Parent: Access denied')
+                else:
+                    print('- Parent: Unknown')
+
+                # Display account tags
+                for tag in acct.get('Tags', []):
                     print('- Tag: "%s" = "%s"' % (tag['Key'], tag['Value']))
 
 
@@ -788,7 +822,9 @@ def run():
                             raise SystemExit('Principal with id "%s" not found.' % principal_id)
 
                     # Note the list can be empty if the option is off or this PS has no target arns.
-                    if (options.show_target_arns == True):
+                    import re
+                    if (options.show_target_arns == True) and (
+                        re.match('^R\\d{12}_', ps_name) or re.match('^[a-f0-9]{32}$', ps_name)):
                         target_arns = sorted(get_target_arns_for_ps(ctx, ps_arn))
 
                     # A dict holding a dict holding a tuple of values...
