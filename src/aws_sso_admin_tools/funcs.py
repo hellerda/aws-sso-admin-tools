@@ -4,7 +4,7 @@
 '''
 Common functions
 
-(c) Copyright Dave Heller 2024
+(c) Copyright Dave Heller 2025
 '''
 
 import boto3
@@ -70,8 +70,46 @@ def get_organizational_root(ctx):
         exit(1)
 
 
-def get_acct_desc_by_name(ctx, acct_name):
+def get_account_parent_ou(ctx, account_id):
+    '''
+    Find the parent OU for a given account.
+    Returns dict with OU info or None if resource not found
+    '''
+    organizations_client = ctx.session.client('organizations')
 
+    try:
+        response = organizations_client.list_parents(ChildId=account_id)
+        parent = response['Parents'][0]  # Account has only one parent
+
+        if parent['Type'] == 'ROOT':
+            org_root = get_organizational_root(ctx)
+            return {
+                'Type': 'ROOT',
+                'Id': parent['Id'],
+                'Name': 'Root',
+                'Arn': org_root['Arn']
+            }
+        else:
+            ou_response = organizations_client.describe_organizational_unit(
+                OrganizationalUnitId=parent['Id']
+            )
+            ou = ou_response['OrganizationalUnit']
+            return {
+                'Type': 'ORGANIZATIONAL_UNIT',
+                'Id': ou['Id'],
+                'Name': ou['Name'],
+                'Arn': ou['Arn']
+            }
+    except ClientError as e:
+        # Catch NotFound exceptions, raise others.
+        error_code = e.response['Error']['Code']
+        if 'NotFound' in error_code:
+            return None
+        else:
+            raise
+
+
+def get_acct_desc_by_name(ctx, acct_name):
     organizations_client = ctx.session.client('organizations')
 
     try:
