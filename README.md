@@ -23,10 +23,24 @@ The program supports most operations you can do via the AWS management console o
 python -m pip install --user pipx
 python -m pipx ensurepath
 
-# Build and install aws-sso-admin with pipx
-cd <project directory>
+# Build and install with pipx
+cd ./aws-sso-admin-tools/
 pipx run build
 pipx install ./dist/aws_sso_admin_tools-n.n.n-py3-none-any.whl
+```
+
+## NEW: Install latest release
+
+In lieu of building from source you can *download the ready-to-install package*.  Look for "Releases" on the right-hand side of this project and download the `.whl` for the latest release.
+
+```bash
+# Install pipx if you don't have it
+python -m pip install --user pipx
+python -m pipx ensurepath
+
+# Download package and install with pipx
+cd /directory/where/downloaded/
+pipx install aws_sso_admin_tools-n.n.n-py3-none-any.whl
 ```
 
 ## Running the program
